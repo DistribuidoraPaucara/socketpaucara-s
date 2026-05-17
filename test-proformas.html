@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebSocket - Proformas & Notificaciones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            font-size: 18px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-authenticating {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px 5px 5px 0;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        button.success {
+            background: #28a745;
+        }
+
+        button.success:hover {
+            background: #218838;
+        }
+
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px solid #e1e8ed;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .message {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #667eea;
+            background: white;
+        }
+
+        .message.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .message.success {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .message.warning {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+
+        .message .timestamp {
+            color: #6c757d;
+            font-size: 11px;
+        }
+
+        .message .content {
+            margin-top: 4px;
+            color: #333;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .info-item label {
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-item value {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        .users-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .user-item .user-info {
+            flex: 1;
+        }
+
+        .user-item .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-item .user-details {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .user-item button {
+            padding: 6px 12px;
+            font-size: 11px;
+            margin: 2px;
+        }
+
+        .user-item .user-info {
+            margin-bottom: 10px;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .role-admin { background: #dc3545; color: white; }
+        .role-manager { background: #007bff; color: white; }
+        .role-preventista { background: #28a745; color: white; }
+        .role-cliente { background: #17a2b8; color: white; }
+        .role-logistica { background: #fd7e14; color: white; }
+        .role-cobrador { background: #6f42c1; color: white; }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .event-template {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .event-template:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .event-template h4 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .event-template p {
+            color: #6c757d;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .json-editor {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-height: 200px;
+            background: #f8f9fa;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🧪 Test WebSocket - Proformas & Notificaciones</h1>
+        <p>Panel de pruebas para simular conexiones, autenticación y envío de notificaciones en tiempo real</p>
+    </div>
+
+    <div class="grid">
+        <!-- Conexión -->
+        <div class="card">
+            <h3>🔌 Conexión al Servidor</h3>
+            <div class="form-group">
+                <label>URL del Servidor WebSocket</label>
+                <input type="text" id="serverUrl" value="http://localhost:3001"
+                       placeholder="http://192.168.1.35:3001">
+                <small style="color: #6c757d; font-size: 11px;">
+                    💡 Desde otra PC, cambia "localhost" por la IP del servidor
+                </small>
+            </div>
+            <button onclick="connect()">🔌 Conectar</button>
+            <button class="danger" onclick="disconnect()">⛔ Desconectar</button>
+
+            <div id="connectionStatus" class="status-badge status-disconnected">
+                ⚫ Desconectado
+            </div>
+        </div>
+
+        <!-- Información de Conexión -->
+        <div class="card">
+            <h3>ℹ️ Información de Conexión</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Socket ID</label>
+                    <value id="socketId">-</value>
+                </div>
+                <div class="info-item">
+                    <label>Estado</label>
+                    <value id="socketState">Desconectado</value>
+                </div>
+                <div class="info-item">
+                    <label>Rol Actual</label>
+                    <value id="currentRole">-</value>
+                </div>
+                <div class="info-item">
+                    <label>User ID</label>
+                    <value id="currentUserId">-</value>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Autenticación -->
+    <div class="card">
+        <h3>🔐 Autenticación de Usuario</h3>
+        <div class="grid">
+            <div class="form-group">
+                <label>ID de Usuario</label>
+                <input type="number" id="userId" value="1" placeholder="Ej: 1, 2, 3...">
+            </div>
+            <div class="form-group">
+                <label>Nombre de Usuario</label>
+                <input type="text" id="userName" value="Usuario Test" placeholder="Juan Pérez">
+            </div>
+            <div class="form-group">
+                <label>Rol / Tipo de Usuario</label>
+                <select id="userRole">
+                    <option value="admin">👑 Admin (ve todo)</option>
+                    <option value="manager">👨‍💼 Manager (ve todo)</option>
+                    <option value="preventista">📋 Preventista (crea proformas)</option>
+                    <option value="cliente">🛒 Cliente (recibe proformas)</option>
+                    <option value="logistica">📦 Logística (ve conversiones)</option>
+                    <option value="cobrador">💰 Cobrador (ve conversiones)</option>
+                    <option value="cajero">💵 Cajero (ve creaciones)</option>
+                </select>
+            </div>
+        </div>
+        <button class="success" onclick="authenticate()">✅ Autenticar</button>
+        <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
+            ⚠️ Nota: Usa autenticación "legacy" (sin token Sanctum) para pruebas rápidas
+        </p>
+    </div>
+
+    <!-- Tabs para diferentes secciones -->
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('send-notifications')">
+                📤 Enviar Notificaciones
+            </button>
+            <button class="tab" onclick="switchTab('active-users')">
+                👥 Usuarios Activos
+            </button>
+            <button class="tab" onclick="switchTab('custom-event')">
+                ⚙️ Evento Personalizado
+            </button>
+        </div>
+
+        <!-- Tab: Enviar Notificaciones -->
+        <div id="tab-send-notifications" class="tab-content active">
+            <h3>📤 Enviar Notificación de Proforma (Simulado)</h3>
+            <p style="margin-bottom: 15px; color: #6c757d; font-size: 13px;">
+                Simula el envío de notificaciones de proformas como si vinieran desde Laravel
+            </p>
+
+            <!-- Plantillas de eventos -->
+            <div class="event-template" onclick="loadProformaTemplate('created')">
+                <h4>📋 Proforma Creada</h4>
+                <p>Simula cuando un cliente crea una nueva proforma</p>
+            </div>
+
+            <div class="event-template" onclick="loadProformaTemplate('approved')">
+                <h4>✅ Proforma Aprobada</h4>
+                <p>Simula cuando un preventista aprueba una proforma</p>
+            </div>
+
+            <div class="event-template" onclick="loadProformaTemplate('rejected')">
+                <h4>❌ Proforma Rechazada</h4>
+                <p>Simula cuando una proforma es rechazada</p>
+            </div>
+
+            <div class="event-template" onclick="loadProformaTemplate('converted')">
+                <h4>🎉 Proforma Convertida a Venta</h4>
+                <p>Simula cuando una proforma se convierte en venta</p>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Evento a Emitir</label>
+                <input type="text" id="eventName" value="proforma:created" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>Datos del Evento (JSON)</label>
+                <textarea id="eventData" class="json-editor" rows="10"></textarea>
+            </div>
+
+            <button class="success" onclick="emitEvent()">🚀 Emitir Evento</button>
+            <button class="secondary" onclick="validateJSON()">✓ Validar JSON</button>
+        </div>
+
+        <!-- Tab: Usuarios Activos -->
+        <div id="tab-active-users" class="tab-content">
+            <h3>👥 Usuarios Activos en el Servidor</h3>
+            <p style="margin-bottom: 15px; color: #6c757d; font-size: 13px;">
+                Aquí puedes ver todos los usuarios conectados y enviarles notificaciones de prueba de forma individual
+            </p>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button onclick="refreshActiveUsers()">🔄 Actualizar Lista</button>
+                <button class="success" onclick="enableAutoRefresh()">🔁 Auto-Refresh</button>
+                <button class="danger" onclick="disableAutoRefresh()">⏸️ Detener Auto-Refresh</button>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px;">
+                <strong>📊 Total Conectados:</strong> <span id="totalConnected">0</span> usuarios
+            </div>
+
+            <div id="activeUsersList" class="users-list" style="margin-top: 15px;">
+                <p style="color: #6c757d; text-align: center; padding: 20px;">
+                    Haz clic en "Actualizar Lista" para ver usuarios conectados
+                </p>
+            </div>
+
+            <!-- Panel de envío masivo por rol -->
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
+                <h4 style="margin-bottom: 10px; color: #856404;">📢 Envío Masivo por Rol</h4>
+                <div class="form-group">
+                    <label>Seleccionar Rol Destino</label>
+                    <select id="targetRole">
+                        <option value="">-- Seleccionar rol --</option>
+                        <option value="admin">👑 Todos los Administradores</option>
+                        <option value="manager">👨‍💼 Todos los Managers</option>
+                        <option value="preventista">📋 Todos los Preventistas</option>
+                        <option value="cliente">🛒 Todos los Clientes</option>
+                        <option value="logistica">📦 Toda la Logística</option>
+                        <option value="cobrador">💰 Todos los Cobradores</option>
+                        <option value="cajero">💵 Todos los Cajeros</option>
+                    </select>
+                </div>
+                <button class="warning" onclick="sendNotificationToRole()">
+                    📢 Enviar Notificación al Rol Completo
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab: Evento Personalizado -->
+        <div id="tab-custom-event" class="tab-content">
+            <h3>⚙️ Emitir Evento Personalizado</h3>
+            <div class="form-group">
+                <label>Nombre del Evento</label>
+                <input type="text" id="customEventName" placeholder="Ej: test:message">
+            </div>
+            <div class="form-group">
+                <label>Datos (JSON)</label>
+                <textarea id="customEventData" class="json-editor" rows="8">{
+  "message": "Hola desde el test",
+  "timestamp": "2025-11-16T00:00:00Z"
+}</textarea>
+            </div>
+            <button class="success" onclick="emitCustomEvent()">🚀 Emitir</button>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="card">
+        <h3>📨 Mensajes y Eventos Recibidos</h3>
+        <button onclick="clearMessages()">🗑️ Limpiar</button>
+        <button class="secondary" onclick="exportMessages()">📥 Exportar</button>
+        <div id="messages"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        let currentUser = null;
+        let messageCount = 0;
+        let autoRefreshInterval = null;
+
+        // Plantillas de eventos de proforma
+        const proformaTemplates = {
+            created: {
+                event: 'proforma:created',
+                data: {
+                    proforma: {
+                        id: 123,
+                        numero: 'PRF-2025-001',
+                        cliente: {
+                            id: 45,
+                            nombre: 'Distribuidora',
+                            apellido: 'ABC'
+                        },
+                        total: 1500.00,
+                        estado: 'PENDIENTE',
+                        fecha_creacion: new Date().toISOString(),
+                        detalles: [
+                            {
+                                producto: 'Producto A',
+                                cantidad: 10,
+                                precio_unitario: 100
+                            },
+                            {
+                                producto: 'Producto B',
+                                cantidad: 5,
+                                precio_unitario: 100
+                            }
+                        ]
+                    },
+                    usuario_creador: {
+                        id: 8,
+                        name: 'Pedro Preventista'
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            },
+            approved: {
+                event: 'proforma:approved',
+                data: {
+                    proforma: {
+                        id: 123,
+                        numero: 'PRF-2025-001',
+                        total: 1500.00,
+                        estado: 'APROBADA',
+                        fecha_aprobacion: new Date().toISOString()
+                    },
+                    usuario_aprobador: {
+                        id: 10,
+                        name: 'María Manager'
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            },
+            rejected: {
+                event: 'proforma:rejected',
+                data: {
+                    proforma: {
+                        id: 123,
+                        numero: 'PRF-2025-001',
+                        motivo_rechazo: 'Precios no coinciden con lista actual'
+                    },
+                    usuario_rechazo: {
+                        id: 10,
+                        name: 'María Manager'
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            },
+            converted: {
+                event: 'proforma:converted',
+                data: {
+                    proforma_id: 123,
+                    proforma_numero: 'PRF-2025-001',
+                    venta_id: 456,
+                    venta_numero: 'VTA-2025-789',
+                    total: 1500.00,
+                    fecha_conversion: new Date().toISOString(),
+                    timestamp: new Date().toISOString()
+                }
+            }
+        };
+
+        // Conectar
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            if (!url) {
+                addMessage('❌ Ingresa una URL válida', 'error');
+                return;
+            }
+
+            if (socket) {
+                socket.disconnect();
+            }
+
+            updateStatus('connecting', 'Conectando...');
+            addMessage(`🔌 Conectando a: ${url}`, 'info');
+
+            socket = io(url, {
+                transports: ['websocket', 'polling'],
+            });
+
+            // Eventos de conexión
+            socket.on('connect', () => {
+                updateStatus('connected', '✅ Conectado');
+                document.getElementById('socketId').textContent = socket.id;
+                document.getElementById('socketState').textContent = 'Conectado';
+                addMessage('✅ Conexión establecida correctamente', 'success');
+            });
+
+            socket.on('disconnect', () => {
+                updateStatus('disconnected', '⚫ Desconectado');
+                document.getElementById('socketId').textContent = '-';
+                document.getElementById('socketState').textContent = 'Desconectado';
+                addMessage('❌ Desconectado del servidor', 'warning');
+            });
+
+            socket.on('connect_error', (error) => {
+                updateStatus('disconnected', '❌ Error de conexión');
+                addMessage(`❌ Error: ${error.message}`, 'error');
+            });
+
+            // Autenticación
+            socket.on('authenticated', (data) => {
+                addMessage(`✅ Autenticado como: ${data.userName || data.userId}`, 'success');
+            });
+
+            socket.on('authentication_error', (data) => {
+                addMessage(`❌ Error de autenticación: ${data.message}`, 'error');
+            });
+
+            // Eventos de proformas
+            socket.on('proforma:created', (data) => {
+                addMessage(`📋 Proforma Creada: ${data.proforma?.numero || 'N/A'}`, 'success', data);
+            });
+
+            socket.on('proforma:approved', (data) => {
+                addMessage(`✅ Proforma Aprobada: ${data.proforma?.numero || 'N/A'}`, 'success', data);
+            });
+
+            socket.on('proforma:rejected', (data) => {
+                addMessage(`❌ Proforma Rechazada: ${data.proforma?.numero || 'N/A'}`, 'warning', data);
+            });
+
+            socket.on('proforma:converted', (data) => {
+                addMessage(`🎉 Proforma Convertida: ${data.proforma_numero} → ${data.venta_numero}`, 'success', data);
+            });
+
+            // Evento genérico para capturar todo
+            socket.onAny((eventName, ...args) => {
+                if (!eventName.startsWith('proforma:') &&
+                    eventName !== 'connect' &&
+                    eventName !== 'disconnect' &&
+                    eventName !== 'authenticated' &&
+                    eventName !== 'authentication_error') {
+                    addMessage(`📡 Evento recibido: ${eventName}`, 'info', args[0]);
+                }
+            });
+        }
+
+        // Desconectar
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                currentUser = null;
+                updateStatus('disconnected', '⚫ Desconectado');
+                document.getElementById('currentRole').textContent = '-';
+                document.getElementById('currentUserId').textContent = '-';
+                addMessage('🔌 Desconectado manualmente', 'info');
+            }
+        }
+
+        // Autenticar
+        function authenticate() {
+            if (!socket || !socket.connected) {
+                addMessage('❌ Primero debes conectarte al servidor', 'error');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            const userName = document.getElementById('userName').value;
+            const userType = document.getElementById('userRole').value;
+
+            if (!userId || !userName) {
+                addMessage('❌ Completa todos los campos', 'error');
+                return;
+            }
+
+            currentUser = { userId, userName, userType };
+            document.getElementById('currentRole').textContent = userType;
+            document.getElementById('currentUserId').textContent = userId;
+
+            socket.emit('authenticate', {
+                userId: parseInt(userId),
+                userName,
+                userType
+            });
+
+            addMessage(`🔐 Autenticando como ${userName} (${userType})...`, 'info');
+        }
+
+        // Cargar plantilla de proforma
+        function loadProformaTemplate(type) {
+            const template = proformaTemplates[type];
+            if (!template) return;
+
+            document.getElementById('eventName').value = template.event;
+            document.getElementById('eventData').value = JSON.stringify(template.data, null, 2);
+
+            addMessage(`📋 Plantilla cargada: ${type}`, 'info');
+        }
+
+        // Emitir evento
+        function emitEvent() {
+            if (!socket || !socket.connected) {
+                addMessage('❌ No hay conexión al servidor', 'error');
+                return;
+            }
+
+            const eventName = document.getElementById('eventName').value;
+            const eventDataStr = document.getElementById('eventData').value;
+
+            if (!eventName) {
+                addMessage('❌ Ingresa el nombre del evento', 'error');
+                return;
+            }
+
+            let eventData;
+            try {
+                eventData = JSON.parse(eventDataStr);
+            } catch (e) {
+                addMessage(`❌ JSON inválido: ${e.message}`, 'error');
+                return;
+            }
+
+            socket.emit(eventName, eventData);
+            addMessage(`🚀 Evento emitido: ${eventName}`, 'success');
+        }
+
+        // Validar JSON
+        function validateJSON() {
+            const eventDataStr = document.getElementById('eventData').value;
+            try {
+                JSON.parse(eventDataStr);
+                addMessage('✅ JSON válido', 'success');
+            } catch (e) {
+                addMessage(`❌ JSON inválido: ${e.message}`, 'error');
+            }
+        }
+
+        // Emitir evento personalizado
+        function emitCustomEvent() {
+            if (!socket || !socket.connected) {
+                addMessage('❌ No hay conexión al servidor', 'error');
+                return;
+            }
+
+            const eventName = document.getElementById('customEventName').value;
+            const eventDataStr = document.getElementById('customEventData').value;
+
+            if (!eventName) {
+                addMessage('❌ Ingresa el nombre del evento', 'error');
+                return;
+            }
+
+            let eventData;
+            try {
+                eventData = JSON.parse(eventDataStr);
+            } catch (e) {
+                addMessage(`❌ JSON inválido: ${e.message}`, 'error');
+                return;
+            }
+
+            socket.emit(eventName, eventData);
+            addMessage(`🚀 Evento personalizado emitido: ${eventName}`, 'success');
+        }
+
+        // Actualizar usuarios activos
+        function refreshActiveUsers() {
+            if (!socket || !socket.connected) {
+                addMessage('❌ No hay conexión al servidor', 'error');
+                return;
+            }
+
+            // Hacer petición HTTP al endpoint de usuarios activos
+            fetch(`${document.getElementById('serverUrl').value}/active-users`)
+                .then(res => res.json())
+                .then(data => {
+                    displayActiveUsers(data);
+                })
+                .catch(err => {
+                    addMessage(`❌ Error al obtener usuarios: ${err.message}`, 'error');
+                });
+        }
+
+        // Mostrar usuarios activos
+        function displayActiveUsers(data) {
+            const container = document.getElementById('activeUsersList');
+            const totalElement = document.getElementById('totalConnected');
+
+            if (!data.users || data.users.length === 0) {
+                container.innerHTML = `
+                    <p style="color: #6c757d; text-align: center; padding: 20px;">
+                        No hay usuarios conectados
+                    </p>
+                `;
+                totalElement.textContent = '0';
+                return;
+            }
+
+            totalElement.textContent = data.users.length;
+
+            container.innerHTML = data.users.map(user => `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-name">
+                            ${user.userName}
+                            <span class="role-badge role-${user.userType}">${user.userType}</span>
+                        </div>
+                        <div class="user-details">
+                            ID: ${user.userId} | Socket: ${user.socketId.substring(0, 8)}... ${user.clientIP ? '| IP: ' + user.clientIP : ''}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="sendTestNotificationToUser(${user.userId}, '${user.userName}', 'created')">
+                            ✨ Creada
+                        </button>
+                        <button class="success" onclick="sendTestNotificationToUser(${user.userId}, '${user.userName}', 'approved')">
+                            ✅ Aprobada
+                        </button>
+                        <button class="danger" onclick="sendTestNotificationToUser(${user.userId}, '${user.userName}', 'rejected')">
+                            ❌ Rechazada
+                        </button>
+                        <button class="warning" onclick="sendTestNotificationToUser(${user.userId}, '${user.userName}', 'converted')">
+                            💰 Convertida
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            addMessage(`👥 ${data.users.length} usuario(s) activo(s)`, 'info');
+        }
+
+        // Enviar notificación de prueba a un usuario específico
+        function sendTestNotificationToUser(userId, userName, eventType = 'created') {
+            if (!socket || !socket.connected) {
+                addMessage('❌ No hay conexión al servidor', 'error');
+                return;
+            }
+
+            const randomId = Math.floor(Math.random() * 1000);
+            const template = proformaTemplates[eventType];
+
+            if (!template) {
+                addMessage('❌ Tipo de evento no válido', 'error');
+                return;
+            }
+
+            // Modificar el template para incluir el userId destino
+            const notificationData = {
+                ...template.data,
+                targetUserId: userId,
+                targetUserName: userName
+            };
+
+            socket.emit(template.event, notificationData);
+            addMessage(`📤 Notificación "${template.event}" enviada a ${userName} (ID: ${userId})`, 'success');
+        }
+
+        // Enviar notificación a todos los usuarios de un rol
+        function sendNotificationToRole() {
+            if (!socket || !socket.connected) {
+                addMessage('❌ No hay conexión al servidor', 'error');
+                return;
+            }
+
+            const role = document.getElementById('targetRole').value;
+            if (!role) {
+                addMessage('❌ Selecciona un rol destino', 'error');
+                return;
+            }
+
+            const randomId = Math.floor(Math.random() * 1000);
+            const testNotification = {
+                proforma: {
+                    id: randomId,
+                    numero: `PRF-ROLE-${randomId}`,
+                    cliente: {
+                        nombre: 'Cliente Test (Envío Masivo)'
+                    },
+                    total: 1234.56,
+                    estado: 'PENDIENTE'
+                },
+                targetRole: role,
+                timestamp: new Date().toISOString()
+            };
+
+            socket.emit('proforma:created', testNotification);
+            addMessage(`📢 Notificación masiva enviada al rol: ${role}`, 'success');
+        }
+
+        // Auto-refresh de usuarios
+        function enableAutoRefresh() {
+            if (autoRefreshInterval) {
+                addMessage('⚠️ Auto-refresh ya está activo', 'warning');
+                return;
+            }
+
+            autoRefreshInterval = setInterval(() => {
+                refreshActiveUsers();
+            }, 3000); // Cada 3 segundos
+
+            addMessage('🔁 Auto-refresh activado (cada 3s)', 'success');
+        }
+
+        function disableAutoRefresh() {
+            if (!autoRefreshInterval) {
+                addMessage('⚠️ Auto-refresh no está activo', 'warning');
+                return;
+            }
+
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+            addMessage('⏸️ Auto-refresh desactivado', 'info');
+        }
+
+        // Actualizar estado visual
+        function updateStatus(status, text) {
+            const badge = document.getElementById('connectionStatus');
+            badge.className = 'status-badge';
+
+            if (status === 'connected') {
+                badge.classList.add('status-connected');
+                badge.textContent = text;
+            } else if (status === 'connecting') {
+                badge.classList.add('status-authenticating', 'pulse');
+                badge.textContent = text;
+            } else {
+                badge.classList.add('status-disconnected');
+                badge.textContent = text;
+            }
+        }
+
+        // Agregar mensaje
+        function addMessage(text, type = 'info', data = null) {
+            messageCount++;
+            const messagesDiv = document.getElementById('messages');
+            const timestamp = new Date().toLocaleTimeString('es-ES');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            let content = `
+                <div class="timestamp">#${messageCount} | ${timestamp}</div>
+                <div class="content">${text}</div>
+            `;
+
+            if (data) {
+                content += `
+                    <details style="margin-top: 8px; font-size: 11px;">
+                        <summary style="cursor: pointer; color: #6c757d;">Ver datos JSON</summary>
+                        <pre style="margin-top: 5px; background: #f1f3f5; padding: 8px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+            }
+
+            messageDiv.innerHTML = content;
+            messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+
+            // Limitar a 100 mensajes
+            while (messagesDiv.children.length > 100) {
+                messagesDiv.removeChild(messagesDiv.lastChild);
+            }
+        }
+
+        // Limpiar mensajes
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+            addMessage('🗑️ Mensajes limpiados', 'info');
+        }
+
+        // Exportar mensajes
+        function exportMessages() {
+            const messages = document.getElementById('messages').innerText;
+            const blob = new Blob([messages], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `websocket-test-${new Date().toISOString()}.txt`;
+            a.click();
+            addMessage('📥 Mensajes exportados', 'success');
+        }
+
+        // Cambiar tab
+        function switchTab(tabName) {
+            // Desactivar todos los tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Activar tab seleccionado
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // Inicialización
+        window.onload = function() {
+            addMessage('🚀 Panel de pruebas cargado', 'success');
+            addMessage('💡 Paso 1: Conéctate al servidor WebSocket', 'info');
+            addMessage('💡 Paso 2: Autentícate con un rol específico', 'info');
+            addMessage('💡 Paso 3: Envía notificaciones de prueba', 'info');
+
+            // Cargar plantilla por defecto
+            loadProformaTemplate('created');
+        };
+    </script>
+</body>
+
+</html>

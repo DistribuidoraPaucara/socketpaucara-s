@@ -1,0 +1,12 @@
+[build]
+builder = "heroku.buildpacks"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/"
+healthcheckTimeout = 300
+
+[env]
+NODE_ENV = "production"
+PORT = "3002"
+WEBSOCKET_HOST = "0.0.0.0"

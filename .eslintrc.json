@@ -1,0 +1,19 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "globals": {
+    "__dirname": "readonly",
+    "process": "readonly"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "projectName": "Cobrador WebSocket Server",
+  "buildCommand": "npm install",
+  "startCommand": "npm start",
+  "variables": {
+    "NODE_ENV": "production",
+    "PORT": "3002",
+    "WEBSOCKET_HOST": "0.0.0.0",
+    "WS_SECRET": "cobrador-websocket-secret-key-2025",
+    "SOCKET_PING_TIMEOUT": "60000",
+    "SOCKET_PING_INTERVAL": "25000",
+    "SOCKET_MAX_HTTP_BUFFER_SIZE": "1048576",
+    "ENABLE_LOGS": "true",
+    "LOG_LEVEL": "info",
+    "DB_SSL": "true"
+  }
+}

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebSocket - Cobrador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        input,
+        select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+<h1>🔌 Test WebSocket - Cobrador</h1>
+
+<div class="container">
+    <h3>Configuración del Servidor</h3>
+    <label for="customServerUrl"><strong>URL del Servidor WebSocket:</strong></label>
+    <input type="text" id="customServerUrl" placeholder="http://192.168.1.100:3001"
+           value="http://localhost:3001" style="width: 300px;">
+    <button onclick="reconnectWithCustomUrl()">Conectar</button>
+    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+        Desde otra PC: Cambia "localhost" por la IP del servidor (ej: http://192.168.1.100:3001)
+    </p>
+</div>
+
+<div class="container">
+    <h3>Información de Conexión</h3>
+    <p><strong>URL Conectada:</strong> <span id="serverUrl">No conectado</span></p>
+    <p><strong>Protocolo:</strong> <span id="protocol">-</span></p>
+    <p><strong>Entorno:</strong> <span id="environment">-</span></p>
+    <p><strong>Socket ID:</strong> <span id="socketId">-</span></p>
+    <p><strong>Mi IP (vista por servidor):</strong> <span id="clientIP">-</span></p>
+</div>
+
+<div class="container">
+    <h3>Estado de Conexión</h3>
+    <div id="status" class="status disconnected">Desconectado</div>
+
+    <h3>Autenticación</h3>
+    <input type="text" id="userId" placeholder="ID de Usuario" value="123">
+    <select id="userType">
+        <option value="client">Cliente</option>
+        <option value="cobrador">Cobrador</option>
+        <option value="manager">Manager</option>
+        <option value="admin">Admin</option>
+    </select>
+    <input type="text" id="userName" placeholder="Nombre de Usuario" value="Usuario Test">
+    <button onclick="authenticate()">Autenticar</button>
+    <button onclick="disconnect()">Desconectar</button>
+</div>
+
+<div class="container">
+    <h3>Enviar Notificación de Crédito</h3>
+    <input type="text" id="targetUserId" placeholder="ID Usuario Destino" value="456">
+    <input type="text" id="notificationTitle" placeholder="Título" value="Nuevo Crédito">
+    <input type="text" id="notificationMessage" placeholder="Mensaje" value="Se ha asignado un nuevo crédito">
+    <button onclick="sendCreditNotification()">Enviar</button>
+</div>
+
+<div class="container">
+    <h3>Actualizar Ubicación (Solo Cobradores)</h3>
+    <input type="number" id="latitude" placeholder="Latitud" value="-17.783327" step="any">
+    <input type="number" id="longitude" placeholder="Longitud" value="-63.182140" step="any">
+    <button onclick="updateLocation()">Actualizar Ubicación</button>
+</div>
+
+<div class="container">
+    <h3>Enviar Mensaje</h3>
+    <input type="text" id="recipientId" placeholder="ID Destinatario" value="789">
+    <input type="text" id="messageText" placeholder="Mensaje" value="Hola, este es un mensaje de prueba">
+    <button onclick="sendMessage()">Enviar Mensaje</button>
+</div>
+
+<div class="container">
+    <h3>Mensajes Recibidos</h3>
+    <div id="messages"></div>
+    <button onclick="clearMessages()">Limpiar</button>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+    let socket = null;
+    let currentUserId = null;
+    let currentServerUrl = 'http://localhost:3001';
+
+    // Conectar con URL personalizada
+    function reconnectWithCustomUrl() {
+        const customUrl = document.getElementById('customServerUrl').value.trim();
+        if (!customUrl) {
+            addMessage('❌ Por favor ingresa una URL válida', 'error');
+            return;
+        }
+
+        // Validar que la URL sea válida
+        try {
+            new URL(customUrl);
+        } catch (e) {
+            addMessage('❌ URL inválida. Formato: http://IP:PUERTO', 'error');
+            return;
+        }
+
+        // Desconectar si ya hay una conexión
+        if (socket) {
+            socket.disconnect();
+            socket = null;
+        }
+
+        currentServerUrl = customUrl;
+        connectSocket(customUrl);
+    }
+
+    function updateServerInfo(serverUrl) {
+        const isSecure = serverUrl && serverUrl.startsWith('https');
+        document.getElementById('serverUrl').textContent = serverUrl || 'No conectado';
+        document.getElementById('protocol').textContent = isSecure ? 'HTTPS/WSS (Seguro)' : 'HTTP/WS (Desarrollo)';
+        document.getElementById('environment').textContent = isSecure ? 'Producción' : 'Desarrollo';
+    }
+
+    // Conectar al servidor WebSocket
+    function connectSocket(serverUrl) {
+        if (!serverUrl) {
+            serverUrl = currentServerUrl;
+        }
+
+        console.log(`🔌 Conectando a: ${serverUrl}`);
+        addMessage(`🔌 Intentando conectar a: ${serverUrl}`, 'info');
+
+        socket = io(serverUrl, {
+            transports: ['websocket', 'polling'],
+            upgrade: true,
+            rememberUpgrade: true
+        });
+
+        socket.on('connect', () => {
+            updateStatus('Conectado', 'connected');
+            updateServerInfo(serverUrl);
+            addMessage('✅ Conectado al servidor WebSocket', 'info');
+            document.getElementById('socketId').textContent = socket.id;
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('Desconectado', 'disconnected');
+            addMessage('❌ Desconectado del servidor', 'info');
+            document.getElementById('socketId').textContent = '-';
+            document.getElementById('clientIP').textContent = '-';
+        });
+
+        socket.on('connect_error', (error) => {
+            updateStatus('Error de Conexión', 'disconnected');
+            addMessage(`❌ Error de conexión: ${error.message}`, 'error');
+            console.error('Error de conexión:', error);
+        });
+
+        socket.on('authenticated', (data) => {
+            addMessage(`✅ Autenticado: ${data.message}`, 'info');
+            if (data.clientIP) {
+                document.getElementById('clientIP').textContent = data.clientIP;
+                addMessage(`📍 Tu IP vista por el servidor: ${data.clientIP}`, 'info');
+            }
+        });
+
+        socket.on('authentication_error', (data) => {
+            addMessage(`❌ Error de autenticación: ${data.message}`, 'error');
+        });
+
+        socket.on('new_credit_notification', (notification) => {
+            addMessage(`💰 Nueva notificación de crédito: ${notification.title} - ${notification.message}`, 'notification');
+        });
+        socket.on('credit_lifecycle_update', (data) => {
+            addMessage(`🏦 Actualización de crédito (${data.action}): ${JSON.stringify(data)}`, 'notification');
+        });
+        socket.on('credit_pending_approval', (data) => {
+            addMessage(`⏳ Crédito pendiente de aprobación: ${JSON.stringify(data)}`, 'notification');
+        });
+        socket.on('credit_decision', (data) => {
+            addMessage(`⚖️ Decisión de crédito (${data.action}): ${JSON.stringify(data)}`, 'notification');
+        });
+        socket.on('credit_delivered_notification', (data) => {
+            addMessage(`🚚 Crédito entregado: ${JSON.stringify(data)}`, 'notification');
+        });
+        socket.on('credit_approved', (data) => {
+            addMessage(`✅ Crédito aprobado (evento dedicado): ${JSON.stringify(data)}`,'notification');
+        });
+        socket.on('credit_attention_required', (data) => {
+            addMessage(`🔔 Crédito requiere atención: ${JSON.stringify(data)}`, 'notification');
+        });
+
+        socket.on('payment_updated', (payment) => {
+            addMessage(`💳 Pago actualizado: ${JSON.stringify(payment)}`, 'notification');
+        });
+        socket.on('payment_received', (payment) => {
+            addMessage(`💳 Pago recibido: ${JSON.stringify(payment)}`, 'notification');
+        });
+        socket.on('cobrador_payment_received', (payment) => {
+            addMessage(`📥 Pago de cobrador recibido: ${JSON.stringify(payment)}`, 'notification');
+        });
+
+        socket.on('route_updated', (route) => {
+            addMessage(`🗺️ Ruta actualizada: ${JSON.stringify(route)}`, 'notification');
+        });
+
+        socket.on('new_message', (data) => {
+            addMessage(`💬 Mensaje de ${data.senderId}: ${data.message}`, 'message');
+        });
+
+        socket.on('cobrador_location_update', (data) => {
+            addMessage(`📍 Ubicación de ${data.cobradorName}: ${data.latitude}, ${data.longitude}`, 'location');
+        });
+
+        socket.on('user_connected', (data) => {
+            const ipInfo = data.clientIP ? ` - IP: ${data.clientIP}` : '';
+            addMessage(`👋 Usuario conectado: ${data.userName} (${data.userType})${ipInfo}`, 'info');
+        });
+
+        socket.on('user_disconnected', (data) => {
+            const ipInfo = data.clientIP ? ` - IP: ${data.clientIP}` : '';
+            addMessage(`👋 Usuario desconectado: ${data.userName} (${data.userType})${ipInfo}`, 'info');
+        });
+
+        // Mostrar logs del servidor (console logs reenviados)
+        socket.on('server_log', (text) => {
+            addMessage(text, 'info');
+        });
+    }
+
+    function authenticate() {
+        if (!socket) {
+            addMessage('❌ No hay conexión WebSocket', 'error');
+            return;
+        }
+
+        const userId = document.getElementById('userId').value;
+        const userType = document.getElementById('userType').value;
+        const userName = document.getElementById('userName').value;
+
+        if (!userId || !userName) {
+            addMessage('❌ Complete todos los campos', 'error');
+            return;
+        }
+
+        currentUserId = userId;
+        socket.emit('authenticate', { userId, userType, userName });
+    }
+
+    function disconnect() {
+        if (socket) {
+            socket.disconnect();
+            socket = null;
+            currentUserId = null;
+            updateStatus('Desconectado', 'disconnected');
+        }
+    }
+
+    function sendCreditNotification() {
+        if (!socket || !currentUserId) {
+            addMessage('❌ Debe estar conectado y autenticado', 'error');
+            return;
+        }
+
+        const targetUserId = document.getElementById('targetUserId').value;
+        const title = document.getElementById('notificationTitle').value;
+        const message = document.getElementById('notificationMessage').value;
+
+        socket.emit('credit_notification', {
+            targetUserId,
+            notification: { title, message, type: 'credit' }
+        });
+
+        addMessage(`📤 Notificación enviada a usuario ${targetUserId}`, 'info');
+    }
+
+    function updateLocation() {
+        if (!socket || !currentUserId) {
+            addMessage('❌ Debe estar conectado y autenticado', 'error');
+            return;
+        }
+
+        const latitude = parseFloat(document.getElementById('latitude').value);
+        const longitude = parseFloat(document.getElementById('longitude').value);
+
+        if (isNaN(latitude) || isNaN(longitude)) {
+            addMessage('❌ Coordenadas inválidas', 'error');
+            return;
+        }
+
+        socket.emit('location_update', { latitude, longitude });
+        addMessage(`📍 Ubicación actualizada: ${latitude}, ${longitude}`, 'info');
+    }
+
+    function sendMessage() {
+        if (!socket || !currentUserId) {
+            addMessage('❌ Debe estar conectado y autenticado', 'error');
+            return;
+        }
+
+        const recipientId = document.getElementById('recipientId').value;
+        const message = document.getElementById('messageText').value;
+
+        if (!recipientId || !message) {
+            addMessage('❌ Complete todos los campos', 'error');
+            return;
+        }
+
+        socket.emit('send_message', {
+            recipientId,
+            message,
+            senderId: currentUserId
+        });
+
+        addMessage(`📤 Mensaje enviado a usuario ${recipientId}`, 'info');
+    }
+
+    function updateStatus(text, className) {
+        const statusElement = document.getElementById('status');
+        statusElement.textContent = text;
+        statusElement.className = `status ${className}`;
+    }
+
+    function addMessage(message, type = 'info') {
+        const messagesDiv = document.getElementById('messages');
+        const timestamp = new Date().toLocaleTimeString();
+        const messageElement = document.createElement('div');
+        messageElement.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+        messageElement.style.marginBottom = '5px';
+
+        if (type === 'error') messageElement.style.color = '#dc3545';
+        else if (type === 'notification') messageElement.style.color = '#28a745';
+        else if (type === 'message') messageElement.style.color = '#007bff';
+        else if (type === 'location') messageElement.style.color = '#ffc107';
+
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function clearMessages() {
+        document.getElementById('messages').innerHTML = '';
+    }
+
+    // Inicializar al cargar la página
+    window.onload = function () {
+        updateServerInfo(null);
+        addMessage('🚀 Página cargada. Ingresa la URL del servidor y haz clic en "Conectar"', 'info');
+        addMessage('💡 Desde otra PC: Usa la IP del servidor (ej: http://192.168.1.100:3001)', 'info');
+    };
+</script>
+</body>
+
+</html>
