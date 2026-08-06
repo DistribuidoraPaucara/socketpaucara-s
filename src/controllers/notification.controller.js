@@ -1114,6 +1114,36 @@ class NotificationController {
                     notificationSent = true;
                 }
             }
+            // ✅ FASE 3: Manejar notificaciones recurrentes desde Laravel Scheduler
+            // Evento: notificacion-recurrente-emitida (desde NotificacionRecurrenteEmitida event)
+            // Se emite a TODOS los clientes conectados (broadcast global)
+            else if (eventName === 'notificacion-recurrente-emitida' || eventName === 'notificacion_recurrente_emitida') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('📢 NOTIFICACIÓN RECURRENTE ENVIADA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   ID: ${notificationData.id}`);
+                console.log(`   Título: ${notificationData.titulo}`);
+                console.log(`   Descripción: ${notificationData.descripcion}`);
+                console.log(`   Tipo: ${notificationData.tipo}`);
+                console.log(`   Enviada en: ${notificationData.enviada_en}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // ✅ BROADCAST GLOBAL: Enviar a TODOS los clientes conectados
+                // Las notificaciones recurrentes son anuncios para todos los usuarios
+                socketRepository.emitToAll('notificacion-recurrente-emitida', {
+                    type: 'notificacion_recurrente',
+                    id: notificationData.id,
+                    titulo: notificationData.titulo,
+                    descripcion: notificationData.descripcion,
+                    tipo: notificationData.tipo,
+                    enviada_en: notificationData.enviada_en,
+                    timestamp: new Date().toISOString(),
+                    notificationType: 'notificacion_recurrente'
+                });
+
+                console.log('   ✅ Notificación recurrente enviada a TODOS los clientes conectados');
+                notificationSent = true;
+            }
             // Fallback: Notificar a un usuario específico por ID
             else if (userId || data?.user_id) {
                 const targetUserId = userId || data?.user_id;

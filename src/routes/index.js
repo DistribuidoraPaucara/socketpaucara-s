@@ -4,6 +4,7 @@ import usersRoutes from './users.routes.js';
 import proformaRoutes from './proforma.routes.js';
 import shipmentRoutes from './shipment.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import { broadcastRoutes } from './broadcast.route.js';
 
 export const setupRoutes = (app) => {
     // Rutas de salud y estáticas
@@ -17,6 +18,9 @@ export const setupRoutes = (app) => {
 
     // Rutas de dashboard (Laravel → WebSocket)
     app.use('/notify', dashboardRoutes);
+
+    // ✅ FASE 3: Rutas de broadcasting desde Laravel (para eventos como notificaciones recurrentes)
+    app.use('/api', broadcastRoutes);
 
     // Rutas de usuarios conectados
     app.use('/api/users', usersRoutes);

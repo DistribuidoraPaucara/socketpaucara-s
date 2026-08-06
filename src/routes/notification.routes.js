@@ -360,4 +360,26 @@ router.post('/notify/venta-entregada-admin', ensureBackend, (req, res, next) => 
     notificationController.handleNotification(req, res, next);
 });
 
+// ✅ FASE 3: Endpoint para notificaciones recurrentes
+// POST /notify/notificacion-recurrente-emitida
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   type: 'notificacion_recurrente',
+//   id: int,
+//   titulo: string,
+//   descripcion: string,
+//   tipo: string,
+//   enviada_en: ISO8601
+// }
+router.post('/notify/notificacion-recurrente-emitida', ensureBackend, (req, res, next) => {
+    req.body.event = 'notificacion-recurrente-emitida';
+    notificationController.handleNotification(req, res, next);
+});
+
+// ✅ Alias para formato con guiones bajos
+router.post('/notify/notificacion_recurrente_emitida', ensureBackend, (req, res, next) => {
+    req.body.event = 'notificacion-recurrente-emitida';
+    notificationController.handleNotification(req, res, next);
+});
+
 export default router;

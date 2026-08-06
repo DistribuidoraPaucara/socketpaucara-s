@@ -37,8 +37,8 @@ router.post('/broadcast', (req, res) => {
   channelsArray.forEach(channelName => {
     debugLog(`📡 Retransmitiendo a canal: ${channelName}`);
 
-    // Emitir a todos en el canal (excepto el remitente si es necesario)
-    socketRepository.getIO().to(channelName).emit(event, {
+    // Emitir a todos en el canal
+    socketRepository.emitToRoom(channelName, event, {
       type: event,
       channel: channelName,
       timestamp: new Date().toISOString(),
@@ -70,12 +70,17 @@ router.get('/health', (req, res) => {
  * Estadísticas de conexiones
  */
 router.get('/stats', (req, res) => {
-  const io = socketRepository.getIO();
+  if (!socketRepository.io) {
+    return res.status(500).json({
+      success: false,
+      error: 'Socket.IO no inicializado'
+    });
+  }
 
   return res.status(200).json({
     timestamp: new Date().toISOString(),
-    connected_clients: io.engine.clientsCount,
-    rooms: io.sockets.adapter.rooms.size,
+    connected_clients: socketRepository.io.engine.clientsCount,
+    rooms: socketRepository.io.sockets.adapter.rooms.size,
     environment: process.env.NODE_ENV
   });
 });
