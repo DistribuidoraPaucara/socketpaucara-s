@@ -121,6 +121,7 @@ class AuthService {
                 socketRepository.joinRoom(socket, 'cobradores');
                 break;
             case 'client':
+            case 'cliente':  // ✅ NUEVO: Soportar "cliente" (español) además de "client" (inglés)
                 socketRepository.joinRoom(socket, 'clients');
                 break;
             case 'manager':
@@ -140,7 +141,12 @@ class AuthService {
                 socketRepository.joinRoom(socket, 'preventistas');
                 break;
             case 'logistica':
+            case 'logístico':  // ✅ NUEVO: Soportar variante con tilde
                 socketRepository.joinRoom(socket, 'logisticas');
+                break;
+            case 'chofer':
+            case 'driver':     // ✅ NUEVO: Soportar "driver" (inglés) y "chofer" (español)
+                socketRepository.joinRoom(socket, 'choferes');
                 break;
             default:
                 // Fallback: Si no coincide ningún tipo conocido, usar el tipo como nombre de sala
@@ -161,6 +167,7 @@ class AuthService {
                 console.log(`      └─ cobradores (sala de rol)`);
                 break;
             case 'client':
+            case 'cliente':
                 console.log(`      └─ clients (sala de rol)`);
                 break;
             case 'manager':
@@ -180,7 +187,12 @@ class AuthService {
                 console.log(`      └─ cajeros (sala de rol)`);
                 break;
             case 'logistica':
+            case 'logístico':
                 console.log(`      └─ logisticas (sala de rol)`);
+                break;
+            case 'chofer':
+            case 'driver':
+                console.log(`      └─ choferes (sala de rol)`);
                 break;
             default:
                 console.log(`      └─ ${normalizedType}s (sala de rol) [tipo personalizado]`);

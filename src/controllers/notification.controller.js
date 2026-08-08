@@ -4,6 +4,7 @@ import socketRepository from '../repositories/socket.repository.js';
 
 class NotificationController {
     // ✅ Mapeo de nombres de roles de Laravel a salas de Socket.IO
+    // ✅ CRÍTICO: Los nombres deben coincidir EXACTAMENTE con las salas en auth.service.js
     mapRolesToRooms(roles) {
         if (!Array.isArray(roles) || roles.length === 0) {
             return [];
@@ -13,13 +14,13 @@ class NotificationController {
             'admin': 'admins',
             'manager': 'managers',
             'preventista': 'preventistas',
-            'cliente': 'clients',
-            'cobrador': 'cobradores',
-            'cajero': 'cajeros',
-            'logistica': 'logisticas',
-            'logístico': 'logisticas',
-            'driver': 'drivers',
-            'chofer': 'drivers',
+            'cliente': 'clients',           // 🔗 Coincide con auth.service.js línea 125
+            'cobrador': 'cobradores',       // 🔗 Coincide con auth.service.js línea 121
+            'cajero': 'cajeros',            // 🔗 Coincide con auth.service.js línea 138
+            'logistica': 'logisticas',      // 🔗 Coincide con auth.service.js línea 145
+            'logístico': 'logisticas',      // 🔗 Coincide con auth.service.js línea 145
+            'driver': 'choferes',           // 🔗 Coincide con auth.service.js línea 149 (se une a 'choferes')
+            'chofer': 'choferes',           // 🔗 Coincide con auth.service.js línea 149 (se une a 'choferes')
         };
 
         return roles
