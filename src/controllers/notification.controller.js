@@ -3,6 +3,33 @@ import proformaNotificationService from '../services/proforma.notification.servi
 import socketRepository from '../repositories/socket.repository.js';
 
 class NotificationController {
+    // ✅ Mapeo de nombres de roles de Laravel a salas de Socket.IO
+    mapRolesToRooms(roles) {
+        if (!Array.isArray(roles) || roles.length === 0) {
+            return [];
+        }
+
+        const roleMap = {
+            'admin': 'admins',
+            'manager': 'managers',
+            'preventista': 'preventistas',
+            'cliente': 'clients',
+            'cobrador': 'cobradores',
+            'cajero': 'cajeros',
+            'logistica': 'logisticas',
+            'logístico': 'logisticas',
+            'driver': 'drivers',
+            'chofer': 'drivers',
+        };
+
+        return roles
+            .map(rol => {
+                const normalized = rol.toLowerCase().trim();
+                return roleMap[normalized] || normalized + 's'; // Fallback: añadir 's' al final
+            })
+            .filter((val, idx, arr) => arr.indexOf(val) === idx); // Eliminar duplicados
+    }
+
     // Manejar notificaciones genéricas desde Laravel
     async handleNotification(req, res) {
         try {
@@ -917,6 +944,149 @@ class NotificationController {
 
                 notificationSent = true;
             }
+            // ✅ NUEVO: Notificar que entrega está lista para entrega
+            else if (eventName === 'entrega.listo-para-entrega' || eventName === 'notify/entrega-listo-para-entrega') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('📤 ENTREGA LISTA PARA ENTREGA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   Entrega ID: ${notificationData.entrega_id}`);
+                console.log(`   Número: ${notificationData.numero_entrega}`);
+                console.log(`   Chofer: ${notificationData.chofer_nombre}`);
+                console.log(`   Vehículo: ${notificationData.vehiculo_placa}`);
+                console.log(`   Ventas: ${notificationData.ventas_count}`);
+                console.log(`   User ID (Creador): ${notificationData.user_id}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // Notificar al creador de la entrega
+                if (notificationData.user_id) {
+                    socketRepository.emitToUser(notificationData.user_id, 'entrega.listo', {
+                        entrega_id: notificationData.entrega_id,
+                        numero_entrega: notificationData.numero_entrega,
+                        chofer_nombre: notificationData.chofer_nombre,
+                        vehiculo_placa: notificationData.vehiculo_placa,
+                        ventas_count: notificationData.ventas_count,
+                        peso_kg: notificationData.peso_kg,
+                        volumen_m3: notificationData.volumen_m3,
+                        mensaje: notificationData.mensaje,
+                        tipo: 'entrega_listo_para_entrega',
+                        timestamp: new Date().toISOString(),
+                        notificationType: 'entrega_listo_para_entrega'
+                    });
+                    console.log(`   ✅ Notificación enviada al creador: user_${notificationData.user_id}`);
+                }
+
+                // Notificar a admins y logística
+                socketRepository.emitToRoom('admins', 'entrega.listo', {
+                    ...notificationData,
+                    tipo: 'entrega_listo_para_entrega'
+                });
+                socketRepository.emitToRoom('logisticas', 'entrega.listo', {
+                    ...notificationData,
+                    tipo: 'entrega_listo_para_entrega'
+                });
+
+                notificationSent = true;
+            }
+            // ✅ NUEVO: Notificar cliente que su entrega está lista
+            else if (eventName === 'cliente.entrega-listo' || eventName === 'notify/cliente-entrega-listo') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('📤 CLIENTE: ENTREGA LISTA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   Venta ID: ${notificationData.venta_id}`);
+                console.log(`   Venta Número: ${notificationData.venta_numero}`);
+                console.log(`   Entrega ID: ${notificationData.entrega_id}`);
+                console.log(`   Entrega Número: ${notificationData.entrega_numero}`);
+                console.log(`   Cliente: ${notificationData.cliente_nombre}`);
+                console.log(`   User ID (Cliente): ${notificationData.user_id}`);
+                console.log(`   Vehículo: ${notificationData.vehiculo_placa}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // Notificar al cliente
+                if (notificationData.user_id) {
+                    socketRepository.emitToUser(notificationData.user_id, 'entrega.listo-cliente', {
+                        venta_id: notificationData.venta_id,
+                        venta_numero: notificationData.venta_numero,
+                        entrega_id: notificationData.entrega_id,
+                        entrega_numero: notificationData.entrega_numero,
+                        cliente_nombre: notificationData.cliente_nombre,
+                        chofer_nombre: notificationData.chofer_nombre,
+                        vehiculo_placa: notificationData.vehiculo_placa,
+                        total: notificationData.total,
+                        mensaje: notificationData.mensaje,
+                        tipo: 'cliente_entrega_listo',
+                        timestamp: new Date().toISOString(),
+                        notificationType: 'cliente_entrega_listo'
+                    });
+                    console.log(`   ✅ Notificación enviada al cliente: user_${notificationData.user_id}`);
+                }
+
+                notificationSent = true;
+            }
+            // ✅ NUEVO: Notificar que una venta fue confirmada como entregada (para logística/creador)
+            else if (eventName === 'venta.confirmada.entrega' || eventName === 'notify/venta-confirmada-entrega') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('✅ VENTA CONFIRMADA COMO ENTREGADA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   Venta ID: ${notificationData.venta_id}`);
+                console.log(`   Venta Número: ${notificationData.venta_numero}`);
+                console.log(`   Entrega ID: ${notificationData.entrega_id}`);
+                console.log(`   Entrega Número: ${notificationData.entrega_numero}`);
+                console.log(`   Cliente: ${notificationData.cliente_nombre}`);
+                console.log(`   Tipo Confirmación: ${notificationData.tipo_confirmacion}`);
+                console.log(`   User ID (Creador): ${notificationData.user_id}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // Notificar al creador de la entrega (logística/admin)
+                if (notificationData.user_id) {
+                    socketRepository.emitToUser(notificationData.user_id, 'venta.confirmada.entrega', {
+                        venta_id: notificationData.venta_id,
+                        venta_numero: notificationData.venta_numero,
+                        entrega_id: notificationData.entrega_id,
+                        entrega_numero: notificationData.entrega_numero,
+                        cliente_nombre: notificationData.cliente_nombre,
+                        cliente_id: notificationData.cliente_id,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,
+                        chofer_nombre: notificationData.chofer_nombre,
+                        total: notificationData.total,
+                        timestamp: new Date().toISOString(),
+                        notificationType: 'venta_confirmada_entregada'
+                    });
+                    console.log(`   ✅ Notificación enviada al creador: user_${notificationData.user_id}`);
+                }
+
+                notificationSent = true;
+            }
+            // ✅ NUEVO: Notificar al cliente que su venta fue confirmada (con tipo_confirmacion)
+            else if (eventName === 'cliente.venta.confirmada' || eventName === 'notify/cliente-venta-confirmada') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('✅ CLIENTE: VENTA CONFIRMADA COMO ENTREGADA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   Venta ID: ${notificationData.venta_id}`);
+                console.log(`   Venta Número: ${notificationData.venta_numero}`);
+                console.log(`   Entrega ID: ${notificationData.entrega_id}`);
+                console.log(`   Cliente: ${notificationData.cliente_nombre}`);
+                console.log(`   Tipo Confirmación: ${notificationData.tipo_confirmacion}`);
+                console.log(`   User ID (Cliente): ${notificationData.user_id}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // Notificar al cliente
+                if (notificationData.user_id) {
+                    socketRepository.emitToUser(notificationData.user_id, 'cliente.venta.confirmada', {
+                        venta_id: notificationData.venta_id,
+                        venta_numero: notificationData.venta_numero,
+                        entrega_id: notificationData.entrega_id,
+                        entrega_numero: notificationData.entrega_numero,
+                        cliente_nombre: notificationData.cliente_nombre,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,
+                        chofer_nombre: notificationData.chofer_nombre,
+                        timestamp: new Date().toISOString(),
+                        notificationType: 'cliente_venta_confirmada'
+                    });
+                    console.log(`   ✅ Notificación enviada al cliente: user_${notificationData.user_id}`);
+                }
+
+                notificationSent = true;
+            }
             // ✅ NUEVO: Manejar generación de reporte de carga
             else if (eventName === 'reporte.cargo_generado') {
                 console.log('\n═══════════════════════════════════════════════════════════');
@@ -1017,22 +1187,21 @@ class NotificationController {
             // ✅ NUEVO: Manejar evento cuando venta es entregada (cliente/preventista)
             else if (eventName === 'venta.entregada') {
                 console.log('\n═══════════════════════════════════════════════════════════');
-                console.log('🎉 VENTA ENTREGADA - NOTIFICACIÓN A CLIENTE/PREVENTISTA');
+                console.log('🎉 VENTA CONFIRMADA ENTREGADA - NOTIFICACIÓN A CLIENTE');
                 console.log('═══════════════════════════════════════════════════════════');
                 console.log(`   Venta ID: ${notificationData.venta_id}`);
                 console.log(`   Venta Número: ${notificationData.venta_numero}`);
                 console.log(`   Cliente: ${notificationData.cliente_nombre}`);
-                console.log(`   Tipo Entrega: ${notificationData.tipo_entrega}`);
+                console.log(`   Tipo Confirmación: ${notificationData.tipo_confirmacion}`);
                 console.log(`   Tipo Novedad: ${notificationData.tipo_novedad || 'N/A'}`);
-                console.log(`   Estado Pago: ${notificationData.estado_pago}`);
                 console.log(`   Total: Bs. ${notificationData.total}`);
                 console.log(`   User ID para routing: ${notificationData.user_id}`);
                 console.log('═══════════════════════════════════════════════════════════\n');
 
                 // Emitir al cliente/preventista específico
                 if (notificationData.user_id) {
-                    // Generar icono según tipo de entrega
-                    const icono = notificationData.tipo_entrega === 'COMPLETA' ? '✅' : '⚠️';
+                    // ✅ Generar icono y título según tipo_confirmacion
+                    const iconoYTitulo = this.generarIconoYTituloConfirmacion(notificationData.tipo_confirmacion);
 
                     socketRepository.emitToUser(notificationData.user_id, 'venta.entregada', {
                         venta_id: notificationData.venta_id,
@@ -1041,11 +1210,10 @@ class NotificationController {
                         entrega_numero: notificationData.entrega_numero,
                         total: notificationData.total,
                         chofer: notificationData.chofer,
-                        tipo_entrega: notificationData.tipo_entrega,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,  // ✅ Campo clave
                         tipo_novedad: notificationData.tipo_novedad,
-                        estado_pago: notificationData.estado_pago,
-                        mensaje: notificationData.mensaje || `${icono} Venta #${notificationData.venta_numero} entregada`,
-                        titulo: notificationData.tipo_entrega === 'COMPLETA' ? '✅ Venta Entregada' : '⚠️ Novedad en Entrega',
+                        mensaje: notificationData.mensaje || `${iconoYTitulo.icono} Venta #${notificationData.venta_numero}`,
+                        titulo: iconoYTitulo.titulo,
                         tipo: 'venta_entregada',
                         timestamp: new Date().toISOString()
                     });
@@ -1056,20 +1224,19 @@ class NotificationController {
             // ✅ NUEVO: Manejar evento cuando venta es entregada (admins/cajeros)
             else if (eventName === 'venta.entregada-admin') {
                 console.log('\n═══════════════════════════════════════════════════════════');
-                console.log('🎉 VENTA ENTREGADA - NOTIFICACIÓN A ADMINS/CAJEROS');
+                console.log('🎉 VENTA CONFIRMADA ENTREGADA - NOTIFICACIÓN A ADMINS/CAJEROS');
                 console.log('═══════════════════════════════════════════════════════════');
                 console.log(`   Venta ID: ${notificationData.venta_id}`);
                 console.log(`   Venta Número: ${notificationData.venta_numero}`);
                 console.log(`   Cliente: ${notificationData.cliente_nombre}`);
-                console.log(`   Tipo Entrega: ${notificationData.tipo_entrega}`);
+                console.log(`   Tipo Confirmación: ${notificationData.tipo_confirmacion}`);
                 console.log(`   Tipo Novedad: ${notificationData.tipo_novedad || 'N/A'}`);
-                console.log(`   Estado Pago: ${notificationData.estado_pago}`);
                 console.log(`   Total: Bs. ${notificationData.total}`);
                 console.log(`   Destinatario: ${notificationData.destinatario}`);
                 console.log('═══════════════════════════════════════════════════════════\n');
 
-                // Generar icono según tipo de entrega
-                const icono = notificationData.tipo_entrega === 'COMPLETA' ? '✅' : '⚠️';
+                // ✅ Generar icono y título según tipo_confirmacion
+                const iconoYTitulo = this.generarIconoYTituloConfirmacion(notificationData.tipo_confirmacion);
 
                 // Emitir a ADMINS
                 if (notificationData.destinatario === 'admins') {
@@ -1081,11 +1248,10 @@ class NotificationController {
                         entrega_numero: notificationData.entrega_numero,
                         total: notificationData.total,
                         chofer: notificationData.chofer,
-                        tipo_entrega: notificationData.tipo_entrega,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,  // ✅ Campo clave
                         tipo_novedad: notificationData.tipo_novedad,
-                        estado_pago: notificationData.estado_pago,
-                        mensaje: notificationData.mensaje || `${icono} Venta #${notificationData.venta_numero} - ${notificationData.cliente_nombre}`,
-                        titulo: notificationData.tipo_entrega === 'COMPLETA' ? '✅ Venta Entregada' : '⚠️ Novedad en Entrega',
+                        mensaje: notificationData.mensaje || `${iconoYTitulo.icono} Venta #${notificationData.venta_numero} - ${notificationData.cliente_nombre}`,
+                        titulo: iconoYTitulo.titulo,
                         tipo: 'venta_entregada',
                         timestamp: new Date().toISOString()
                     });
@@ -1102,12 +1268,11 @@ class NotificationController {
                         entrega_numero: notificationData.entrega_numero,
                         total: notificationData.total,
                         chofer: notificationData.chofer,
-                        tipo_entrega: notificationData.tipo_entrega,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,  // ✅ Campo clave
                         tipo_novedad: notificationData.tipo_novedad,
-                        estado_pago: notificationData.estado_pago,
-                        mensaje: notificationData.mensaje || `${icono} Pago venta #${notificationData.venta_numero} - ${notificationData.cliente_nombre} - Bs. ${notificationData.total}`,
-                        titulo: notificationData.estado_pago === 'PAGADO' ? '💰 Pago Registrado' : `💳 ${notificationData.estado_pago === 'PARCIAL' ? 'Pago Parcial' : 'Sin Pago'}`,
-                        tipo: 'venta_entregada_pago',
+                        mensaje: notificationData.mensaje || `${iconoYTitulo.icono} Venta #${notificationData.venta_numero} entregada`,
+                        titulo: iconoYTitulo.titulo,
+                        tipo: 'venta_entregada',
                         timestamp: new Date().toISOString()
                     });
                     console.log(`   ✅ Notificación enviada a cajeros`);
@@ -1116,7 +1281,7 @@ class NotificationController {
             }
             // ✅ FASE 3: Manejar notificaciones recurrentes desde Laravel Scheduler
             // Evento: notificacion-recurrente-emitida (desde NotificacionRecurrenteEmitida event)
-            // Se emite a TODOS los clientes conectados (broadcast global)
+            // Se emite filtrado por roles si se especifican
             else if (eventName === 'notificacion-recurrente-emitida' || eventName === 'notificacion_recurrente_emitida') {
                 console.log('\n═══════════════════════════════════════════════════════════');
                 console.log('📢 NOTIFICACIÓN RECURRENTE ENVIADA');
@@ -1125,23 +1290,38 @@ class NotificationController {
                 console.log(`   Título: ${notificationData.titulo}`);
                 console.log(`   Descripción: ${notificationData.descripcion}`);
                 console.log(`   Tipo: ${notificationData.tipo}`);
+                console.log(`   Roles originales: ${notificationData.roles ? notificationData.roles.join(', ') : 'TODOS'}`);
                 console.log(`   Enviada en: ${notificationData.enviada_en}`);
                 console.log('═══════════════════════════════════════════════════════════\n');
 
-                // ✅ BROADCAST GLOBAL: Enviar a TODOS los clientes conectados
-                // Las notificaciones recurrentes son anuncios para todos los usuarios
-                socketRepository.emitToAll('notificacion-recurrente-emitida', {
+                const payload = {
                     type: 'notificacion_recurrente',
                     id: notificationData.id,
                     titulo: notificationData.titulo,
                     descripcion: notificationData.descripcion,
                     tipo: notificationData.tipo,
-                    enviada_en: notificationData.enviada_en,
                     timestamp: new Date().toISOString(),
                     notificationType: 'notificacion_recurrente'
-                });
+                };
 
-                console.log('   ✅ Notificación recurrente enviada a TODOS los clientes conectados');
+                // ✅ Si hay roles especificados, enviar solo a esos roles
+                if (notificationData.roles && Array.isArray(notificationData.roles) && notificationData.roles.length > 0) {
+                    // Mapear nombres de roles de Laravel a salas de Socket.IO
+                    const rooms = this.mapRolesToRooms(notificationData.roles);
+                    console.log(`   📍 Salas mapeadas: ${rooms.join(', ')}`);
+
+                    rooms.forEach(room => {
+                        socketRepository.emitToRoom(room, 'notificacion-recurrente-emitida', payload);
+                        console.log(`   ✅ Notificación enviada a sala: ${room}`);
+                    });
+
+                    console.log(`   🎯 Total de salas: ${rooms.length}`);
+                } else {
+                    // ✅ Si no hay roles, enviar a TODOS los clientes conectados
+                    socketRepository.emitToAll('notificacion-recurrente-emitida', payload);
+                    console.log('   ✅ Notificación recurrente enviada a TODOS los clientes conectados');
+                }
+
                 notificationSent = true;
             }
             // Fallback: Notificar a un usuario específico por ID
@@ -1203,6 +1383,37 @@ class NotificationController {
         });
     }
 
+    // ✅ NUEVA: Generar icono y título según tipo_confirmacion
+    generarIconoYTituloConfirmacion(tipoConfirmacion) {
+        const mapeo = {
+            'COMPLETA': {
+                icono: '✅',
+                titulo: '✅ Venta Entregada'
+            },
+            'RECHAZADO': {
+                icono: '❌',
+                titulo: '❌ Venta Rechazada'
+            },
+            'DEVOLUCION_PARCIAL': {
+                icono: '⚠️',
+                titulo: '⚠️ Devolución Parcial'
+            },
+            'CLIENTE_CERRADO': {
+                icono: '🏪',
+                titulo: '🏪 Local Cerrado'
+            },
+            'NO_CONTACTADO': {
+                icono: '📞',
+                titulo: '📞 No se pudo contactar'
+            }
+        };
+
+        return mapeo[tipoConfirmacion] || {
+            icono: 'ℹ️',
+            titulo: 'ℹ️ Actualización de entrega'
+        };
+    }
+
     // ✅ FASE 2: Determinar prioridad de evento según estado
     // Estados críticos (GPS activo) son high priority
     // Estados finales son medium priority
@@ -1215,6 +1426,73 @@ class NotificationController {
         if (mediumStates.includes(estadoCodigo)) return 'medium';
         if (lowStates.includes(estadoCodigo)) return 'low';
         return 'medium'; // default
+    }
+
+    // ✅ NUEVO (2026-08-08): Manejar notificaciones multi-canal
+    // Envía a múltiples usuarios y roles en una sola petición HTTP
+    async handleMultiChannel(req, res) {
+        try {
+            const { event, data, user_ids = [], roles = [], timestamp } = req.body;
+
+            if (!event || !data) {
+                console.error('❌ [/notify/multi-channel] Faltan parámetros: event o data');
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing event or data'
+                });
+            }
+
+            console.log('\n═══════════════════════════════════════════════════════════');
+            console.log(`📡 [/notify/multi-channel] Evento: ${event}`);
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log(`   User IDs: ${user_ids.length}`);
+            console.log(`   Roles: ${roles.length}`);
+            console.log(`   Data keys: ${Object.keys(data).join(', ')}`);
+            console.log('═══════════════════════════════════════════════════════════\n');
+
+            let totalEmitted = 0;
+
+            // 📬 Emitir a usuarios específicos
+            for (const userId of user_ids) {
+                try {
+                    socketRepository.emitToUser(userId, event, data);
+                    console.log(`   ✅ Emitido a usuario: ${userId}`);
+                    totalEmitted++;
+                } catch (error) {
+                    console.error(`   ❌ Error emitiendo a usuario ${userId}:`, error.message);
+                }
+            }
+
+            // 👥 Emitir a roles (mapear roles de Laravel a salas de Socket.IO)
+            const socketRooms = this.mapRolesToRooms(roles);
+            for (const room of socketRooms) {
+                try {
+                    socketRepository.emitToRoom(room, event, data);
+                    console.log(`   ✅ Emitido a rol/sala: ${room}`);
+                    totalEmitted++;
+                } catch (error) {
+                    console.error(`   ❌ Error emitiendo a sala ${room}:`, error.message);
+                }
+            }
+
+            console.log(`\n✅ [/notify/multi-channel] ${totalEmitted} emisiones completadas para evento: ${event}\n`);
+
+            return res.json({
+                success: true,
+                event,
+                user_ids_count: user_ids.length,
+                roles_count: roles.length,
+                total_emitted: totalEmitted,
+                timestamp: timestamp || new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('❌ Error en /notify/multi-channel:', error.message);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
     }
 }
 

@@ -214,6 +214,48 @@ router.post('/notify/venta-asignada-entrega', ensureBackend, (req, res, next) =>
     notificationController.handleNotification(req, res, next);
 });
 
+// ✅ NUEVA: Endpoint para notificar que entrega está lista para entrega
+// POST /notify/entrega-listo-para-entrega
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   entrega_id: int,
+//   numero_entrega: string,
+//   chofer_id: int,
+//   chofer_nombre: string,
+//   vehiculo_placa: string,
+//   user_id: int (creator.id para routing),
+//   ventas_count: int,
+//   peso_kg: float,
+//   volumen_m3: float,
+//   mensaje: string
+// }
+router.post('/notify/entrega-listo-para-entrega', ensureBackend, (req, res, next) => {
+    req.body.event = 'entrega.listo-para-entrega';
+    notificationController.handleNotification(req, res, next);
+});
+
+// ✅ NUEVA: Endpoint para notificar cliente que su entrega está lista
+// POST /notify/cliente-entrega-listo
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   venta_id: int,
+//   venta_numero: string,
+//   entrega_id: int,
+//   entrega_numero: string,
+//   cliente_nombre: string,
+//   cliente_id: int,
+//   user_id: int (cliente.user_id para routing),
+//   chofer_nombre: string,
+//   vehiculo_placa: string,
+//   total: float,
+//   mensaje: string,
+//   tipo: 'cliente_entrega_listo'
+// }
+router.post('/notify/cliente-entrega-listo', ensureBackend, (req, res, next) => {
+    req.body.event = 'cliente.entrega-listo';
+    notificationController.handleNotification(req, res, next);
+});
+
 // ✅ NUEVA: Endpoint para reporte de carga generado
 // POST /notify/reporte-cargo-generado
 // Headers: { 'x-ws-secret': '...' }
@@ -381,5 +423,66 @@ router.post('/notify/notificacion_recurrente_emitida', ensureBackend, (req, res,
     req.body.event = 'notificacion-recurrente-emitida';
     notificationController.handleNotification(req, res, next);
 });
+
+// ✅ NUEVO: Endpoint para notificar que una venta fue confirmada como entregada
+// POST /notify/venta-confirmada-entrega
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   venta_id: int,
+//   venta_numero: string,
+//   entrega_id: int,
+//   entrega_numero: string,
+//   cliente_nombre: string,
+//   cliente_id: int,
+//   user_id: int (creador de entrega),
+//   tipo_confirmacion: 'COMPLETA'|'RECHAZADO'|'DEVOLUCION_PARCIAL'|'CLIENTE_CERRADO'|'NO_CONTACTADO',
+//   chofer_nombre: string,
+//   total: float
+// }
+router.post('/notify/venta-confirmada-entrega', ensureBackend, (req, res, next) => {
+    req.body.event = 'venta.confirmada.entrega';
+    notificationController.handleNotification(req, res, next);
+});
+
+// ✅ NUEVO: Endpoint para notificar al cliente que su venta fue confirmada como entregada
+// POST /notify/cliente-venta-confirmada
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   venta_id: int,
+//   venta_numero: string,
+//   entrega_id: int,
+//   entrega_numero: string,
+//   cliente_nombre: string,
+//   cliente_id: int,
+//   user_id: int (cliente user_id),
+//   tipo_confirmacion: 'COMPLETA'|'RECHAZADO'|'DEVOLUCION_PARCIAL'|'CLIENTE_CERRADO'|'NO_CONTACTADO',
+//   chofer_nombre: string
+// }
+router.post('/notify/cliente-venta-confirmada', ensureBackend, (req, res, next) => {
+    req.body.event = 'cliente.venta.confirmada';
+    notificationController.handleNotification(req, res, next);
+});
+
+// ✅ NUEVO (2026-08-08): Endpoint genérico para notificaciones multi-canal
+// Envía a múltiples usuarios y roles en una sola petición HTTP
+// POST /notify/multi-channel
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   event: 'proforma.creada',           // Nombre del evento
+//   data: { ... },                      // Datos a enviar
+//   user_ids: [1, 2, 3],               // IDs de usuarios específicos
+//   roles: ['admin', 'cajero'],        // Roles a notificar
+//   timestamp: ISO8601
+// }
+// Ejemplo respuesta:
+// {
+//   success: true,
+//   event: 'proforma.creada',
+//   user_ids_count: 2,
+//   roles_count: 3,
+//   total_emitted: 5,
+//   timestamp: '2026-08-08T12:37:10-04:00'
+// }
+router.post('/notify/multi-channel', ensureBackend, notificationController.handleMultiChannel);
 
 export default router;
