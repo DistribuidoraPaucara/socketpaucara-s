@@ -483,6 +483,9 @@ router.post('/notify/cliente-venta-confirmada', ensureBackend, (req, res, next) 
 //   total_emitted: 5,
 //   timestamp: '2026-08-08T12:37:10-04:00'
 // }
-router.post('/notify/multi-channel', ensureBackend, notificationController.handleMultiChannel);
+// ✅ Usar arrow function para preservar contexto 'this'
+router.post('/notify/multi-channel', ensureBackend, (req, res) => {
+    notificationController.handleMultiChannel(req, res);
+});
 
 export default router;
