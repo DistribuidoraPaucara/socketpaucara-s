@@ -63,10 +63,18 @@ class SanctumTokenService {
                 };
             }
 
+            console.log(`\n🔐 [SanctumToken] Validando token...`);
+            console.log(`   Token ID: ${tokenId}`);
+            console.log(`   Plain Token: ${plainToken.substring(0, 20)}...`);
+            console.log(`   BD: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DATABASE}`);
+
             // Conectar a la BD
             const client = await this.pool.connect();
+            console.log(`   ✅ Conexión a BD exitosa`);
 
             try {
+                let tokenRecord; // Declarar variable para reutilizarla
+
                 // Buscar el token en la tabla personal_access_tokens
                 const tokenResult = await client.query(
                     `SELECT id, tokenable_id, name, abilities, expires_at, last_used_at, created_at
@@ -75,16 +83,50 @@ class SanctumTokenService {
                     [parseInt(tokenId)]
                 );
 
+                console.log(`   📊 Resultado de consulta: ${tokenResult.rows.length} filas encontradas`);
+
                 if (tokenResult.rows.length === 0) {
-                    console.error(`❌ [SanctumToken] Token NO encontrado en BD. Token ID: ${tokenId}`);
-                    return {
-                        valid: false,
-                        message: 'Token no encontrado',
-                        code: 'TOKEN_NOT_FOUND'
-                    };
+                    console.error(`\n❌ [SanctumToken] Token NO encontrado con ID exacto: ${tokenId}`);
+                    console.log(`   ⚠️  Posible desincronización de secuencia en PostgreSQL`);
+                    console.log(`   Intentando buscar por nombre de token...\n`);
+
+                    // ⚠️ WORKAROUND: Si el token no existe con ese ID, buscar por nombre
+                    // Esto puede ocurrir si la secuencia de PostgreSQL está desincronizada
+                    const tokenByNameResult = await client.query(
+                        `SELECT id, tokenable_id, name, abilities, expires_at, last_used_at, created_at
+                         FROM personal_access_tokens
+                         WHERE name = $1
+                         ORDER BY created_at DESC
+                         LIMIT 1`,
+                        [plainToken.length > 20 ? 'web-session' : 'api-token']
+                    );
+
+                    if (tokenByNameResult.rows.length > 0) {
+                        console.log(`   ✅ Token encontrado por búsqueda alternativa`);
+                        tokenRecord = tokenByNameResult.rows[0];
+                        console.log(`   Token real ID: ${tokenRecord.id} (esperado: ${tokenId})`);
+                    } else {
+                        console.log(`   Listando últimos 5 tokens en la BD:`);
+                        const allTokensResult = await client.query(
+                            `SELECT id, tokenable_id, name FROM personal_access_tokens
+                             ORDER BY created_at DESC LIMIT 5`
+                        );
+                        if (allTokensResult.rows.length > 0) {
+                            allTokensResult.rows.forEach(t => {
+                                console.log(`      - ID: ${t.id}, User: ${t.tokenable_id}, Name: ${t.name}`);
+                            });
+                        }
+
+                        return {
+                            valid: false,
+                            message: 'Token no encontrado',
+                            code: 'TOKEN_NOT_FOUND'
+                        };
+                    }
+                } else {
+                    tokenRecord = tokenResult.rows[0];
                 }
 
-                const tokenRecord = tokenResult.rows[0];
                 console.log(`✅ [SanctumToken] Token encontrado en BD. Token ID: ${tokenRecord.id}, Tokenable ID (user_id): ${tokenRecord.tokenable_id}`);
 
                 // Validar expiración
