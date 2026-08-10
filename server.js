@@ -53,6 +53,45 @@ const io = new socketIo(server, {
     ...socketConfig
 });
 
+// ✅ NUEVO: Capturar console.log y emitir a clientes WebSocket
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+
+console.log = function(...args) {
+    originalLog.apply(console, args);
+    const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+
+    // Emitir a todos los clientes conectados
+    if (io) {
+        io.emit('server_log', `📋 ${message}`);
+    }
+};
+
+console.error = function(...args) {
+    originalError.apply(console, args);
+    const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+
+    if (io) {
+        io.emit('server_log', `❌ ${message}`);
+    }
+};
+
+console.warn = function(...args) {
+    originalWarn.apply(console, args);
+    const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+
+    if (io) {
+        io.emit('server_log', `⚠️  ${message}`);
+    }
+};
+
 // Middleware
 app.use(cors(expressCorOptions));
 app.use(express.json());
