@@ -1,6 +1,7 @@
 import express from 'express';
 import notificationController from '../controllers/notification.controller.js';
 import { ensureBackend } from '../middleware/auth.middleware.js';
+import socketRepository from '../repositories/socket.repository.js';
 
 const router = express.Router();
 
@@ -486,6 +487,68 @@ router.post('/notify/cliente-venta-confirmada', ensureBackend, (req, res, next) 
 // ✅ Usar arrow function para preservar contexto 'this'
 router.post('/notify/multi-channel', ensureBackend, (req, res) => {
     notificationController.handleMultiChannel(req, res);
+});
+
+// ✅ NUEVO: Endpoint para enviar notificación a un rol específico
+// POST /notify/role
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   role: string (nombre del rol: 'admin', 'gerente', etc.),
+//   event: string (nombre del evento),
+//   data: object (datos a enviar),
+//   timestamp: string (ISO8601, opcional)
+// }
+router.post('/notify/role', ensureBackend, (req, res) => {
+    try {
+        const { role, event, data, timestamp } = req.body;
+
+        if (!role || !event || !data) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required parameters: role, event, data'
+            });
+        }
+
+        console.log('\n═══════════════════════════════════════════════════════════');
+        console.log(`📡 [/notify/role] Enviando a rol: ${role}`);
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`   Evento: ${event}`);
+        console.log(`   Rol: ${role}`);
+        console.log(`   Datos:`, JSON.stringify(data, null, 2));
+        console.log('═══════════════════════════════════════════════════════════\n');
+
+        // Mapear rol de Laravel a sala Socket.IO
+        const socketRooms = notificationController.mapRolesToRooms([role]);
+
+        if (socketRooms.length === 0) {
+            console.warn(`⚠️ No se pudo mapear el rol: ${role}`);
+            return res.status(400).json({
+                success: false,
+                error: `Invalid role: ${role}`
+            });
+        }
+
+        // Emitir a la sala mapeada
+        const room = socketRooms[0];
+        socketRepository.emitToRoom(room, event, data);
+
+        console.log(`✅ [/notify/role] Notificación emitida a sala: ${room}\n`);
+
+        return res.json({
+            success: true,
+            role,
+            event,
+            room,
+            timestamp: timestamp || new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Error en /notify/role:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 export default router;

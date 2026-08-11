@@ -60,8 +60,8 @@ class AuthService {
                 connectedAt: new Date().toISOString()
             });
 
-            // PASO 4: Unir al usuario a salas según su tipo
-            this.joinUserToRooms(socket, userType);
+            // PASO 4: Unir al usuario a salas según su tipo Y TODOS SUS ROLES
+            this.joinUserToRooms(socket, userType, roles);
 
             // PASO 5: Unir a sala personal
             socketRepository.joinRoom(socket, `user_${normalizedUserId}`);
@@ -78,7 +78,7 @@ class AuthService {
             console.log(`   Socket ID: ${socket.id}`);
             console.log(`   🏠 Unido a salas:`);
             console.log(`      └─ user_${normalizedUserId} (sala personal)`);
-            this.logRoomsForType(userType);
+            this.logRoomsForType(userType, roles);
 
             // PASO 7: Notificar a otros usuarios sobre la conexión
             socketRepository.broadcast(socket, 'user_connected', {
@@ -111,91 +111,158 @@ class AuthService {
         }
     }
 
-    // Unir usuario a salas según su tipo
-    // ✅ IMPORTANTE: Normalizar userType a minúsculas para evitar problemas case-sensitive
-    joinUserToRooms(socket, userType) {
+    // Unir usuario a salas según su tipo Y todos sus roles
+    // ✅ IMPORTANTE: Normalizar a minúsculas para evitar problemas case-sensitive
+    joinUserToRooms(socket, userType, roles = []) {
         const normalizedType = (userType || '').toLowerCase().trim();
+        const rolesSet = new Set(); // Para evitar duplicados
 
+        // Primero, procesar el userType principal
+        this._joinRoomsByType(normalizedType, rolesSet);
+
+        // ✅ NUEVO: Procesar TODOS los roles del usuario
+        if (Array.isArray(roles) && roles.length > 0) {
+            roles.forEach(role => {
+                const normalizedRole = (role || '').toLowerCase().trim();
+                this._joinRoomsByType(normalizedRole, rolesSet);
+            });
+        }
+
+        // Unir a todas las salas recolectadas
+        rolesSet.forEach(room => {
+            socketRepository.joinRoom(socket, room);
+        });
+    }
+
+    // ✅ Método auxiliar para mapear tipos/roles a salas
+    _joinRoomsByType(normalizedType, rolesSet) {
         switch (normalizedType) {
             case 'cobrador':
-                socketRepository.joinRoom(socket, 'cobradores');
+                rolesSet.add('cobradores');
                 break;
             case 'client':
-            case 'cliente':  // ✅ NUEVO: Soportar "cliente" (español) además de "client" (inglés)
-                socketRepository.joinRoom(socket, 'clients');
+            case 'cliente':
+                rolesSet.add('clients');
                 break;
             case 'manager':
-                socketRepository.joinRoom(socket, 'managers');
-                socketRepository.joinRoom(socket, 'admins'); // Los managers también reciben notificaciones de admin
+                rolesSet.add('managers');
+                rolesSet.add('admins');
                 break;
             case 'admin':
-            case 'super admin': // ✅ NUEVO: Soportar "Super Admin" como equivalente de admin
-                socketRepository.joinRoom(socket, 'admins');
-                socketRepository.joinRoom(socket, 'managers'); // Los admins también reciben notificaciones de managers
-                socketRepository.joinRoom(socket, 'cobradores'); // Los admins también reciben notificaciones de cobradores
+            case 'super admin':
+                rolesSet.add('admins');
+                rolesSet.add('managers');
+                rolesSet.add('cobradores');
                 break;
             case 'cajero':
-                socketRepository.joinRoom(socket, 'cajeros');
+                rolesSet.add('cajeros');
                 break;
             case 'preventista':
-                socketRepository.joinRoom(socket, 'preventistas');
+                rolesSet.add('preventistas');
                 break;
             case 'logistica':
-            case 'logístico':  // ✅ NUEVO: Soportar variante con tilde
-                socketRepository.joinRoom(socket, 'logisticas');
+            case 'logístico':
+                rolesSet.add('logisticas');
                 break;
             case 'chofer':
-            case 'driver':     // ✅ NUEVO: Soportar "driver" (inglés) y "chofer" (español)
-                socketRepository.joinRoom(socket, 'choferes');
+            case 'driver':
+                rolesSet.add('choferes');
+                break;
+            case 'vendedor':
+            case 'vendedores':
+                rolesSet.add('vendedores');
+                break;
+            case 'compras':
+                rolesSet.add('compras');
+                break;
+            case 'gestor de usuarios':
+            case 'gestor':
+                rolesSet.add('gestores');
                 break;
             default:
-                // Fallback: Si no coincide ningún tipo conocido, usar el tipo como nombre de sala
-                if (normalizedType) {
-                    socketRepository.joinRoom(socket, normalizedType + 's');
-                    console.warn(`⚠️  Tipo de usuario no reconocido: ${userType} → Unido a sala: ${normalizedType}s`);
+                if (normalizedType && normalizedType.length > 0) {
+                    rolesSet.add(normalizedType + 's');
                 }
         }
     }
 
-    // Registrar en logs las salas según el tipo de usuario
+    // Registrar en logs las salas según el tipo de usuario Y todos sus roles
     // ✅ IMPORTANTE: Normalizar userType a minúsculas para evitar problemas case-sensitive
-    logRoomsForType(userType) {
+    logRoomsForType(userType, roles = []) {
+        const rolesSet = new Set();
         const normalizedType = (userType || '').toLowerCase().trim();
 
+        // Procesar userType principal
+        this._collectRoomsForType(normalizedType, rolesSet);
+
+        // ✅ NUEVO: Procesar TODOS los roles
+        if (Array.isArray(roles) && roles.length > 0) {
+            roles.forEach(role => {
+                const normalizedRole = (role || '').toLowerCase().trim();
+                this._collectRoomsForType(normalizedRole, rolesSet);
+            });
+        }
+
+        // Mostrar todas las salas
+        if (rolesSet.size > 0) {
+            const roomsArray = Array.from(rolesSet).sort();
+            roomsArray.forEach((room, index) => {
+                const isLast = index === roomsArray.length - 1;
+                const prefix = isLast ? '└─' : '├─';
+                console.log(`      ${prefix} ${room} (sala de rol)`);
+            });
+        }
+    }
+
+    // ✅ Método auxiliar para recolectar salas
+    _collectRoomsForType(normalizedType, rolesSet) {
         switch (normalizedType) {
             case 'cobrador':
-                console.log(`      └─ cobradores (sala de rol)`);
+                rolesSet.add('cobradores');
                 break;
             case 'client':
             case 'cliente':
-                console.log(`      └─ clients (sala de rol)`);
+                rolesSet.add('clients');
                 break;
             case 'manager':
-                console.log(`      ├─ managers (sala de rol)`);
-                console.log(`      └─ admins (para recibir notificaciones de admin)`);
+                rolesSet.add('managers');
+                rolesSet.add('admins');
                 break;
             case 'admin':
             case 'super admin':
-                console.log(`      ├─ admins (sala de rol)`);
-                console.log(`      ├─ managers (para recibir notificaciones de managers)`);
-                console.log(`      └─ cobradores (para recibir notificaciones de cobradores)`);
-                break;
-            case 'preventista':
-                console.log(`      └─ preventistas (sala de rol)`);
+                rolesSet.add('admins');
+                rolesSet.add('managers');
+                rolesSet.add('cobradores');
                 break;
             case 'cajero':
-                console.log(`      └─ cajeros (sala de rol)`);
+                rolesSet.add('cajeros');
+                break;
+            case 'preventista':
+                rolesSet.add('preventistas');
                 break;
             case 'logistica':
             case 'logístico':
-                console.log(`      └─ logisticas (sala de rol)`);
+                rolesSet.add('logisticas');
                 break;
             case 'chofer':
             case 'driver':
-                console.log(`      └─ choferes (sala de rol)`);
+                rolesSet.add('choferes');
+                break;
+            case 'vendedor':
+            case 'vendedores':
+                rolesSet.add('vendedores');
+                break;
+            case 'compras':
+                rolesSet.add('compras');
+                break;
+            case 'gestor de usuarios':
+            case 'gestor':
+                rolesSet.add('gestores');
                 break;
             default:
-                console.log(`      └─ ${normalizedType}s (sala de rol) [tipo personalizado]`);
+                if (normalizedType && normalizedType.length > 0) {
+                    rolesSet.add(normalizedType + 's');
+                }
         }
     }
 
