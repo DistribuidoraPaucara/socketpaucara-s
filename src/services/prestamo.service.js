@@ -133,6 +133,68 @@ class PrestamoService {
             return false;
         }
     }
+
+    /**
+     * 🎁 Notificar creación de préstamo a proveedor
+     * Emite a múltiples canales según usuario_id y roles
+     */
+    notifyPrestamoProveedorCreado(prestamoData) {
+        console.log('🎁 PrestamoService.notifyPrestamoProveedorCreado()');
+        console.log('   Datos:', {
+            id: prestamoData.id,
+            proveedor: prestamoData.proveedor_nombre,
+            cantidad: prestamoData.cantidad,
+        });
+
+        try {
+            const message = {
+                id: prestamoData.id,
+                type: 'prestamo.proveedor.creado',
+                proveedor_nombre: prestamoData.proveedor_nombre || 'Proveedor',
+                proveedor_id: prestamoData.proveedor_id,
+                cantidad: prestamoData.cantidad,
+                estado: prestamoData.estado,
+                items: prestamoData.items || [],
+                creador: prestamoData.creador?.name || 'Sistema',
+                fecha: prestamoData.fecha_creacion || new Date().toISOString(),
+                timestamp: Date.now(),
+            };
+
+            // ✅ EMITIR A USUARIOS ESPECÍFICOS
+            if (prestamoData.user_ids && prestamoData.user_ids.length > 0) {
+                console.log(`   📤 Emitiendo a usuarios específicos (${prestamoData.user_ids.length}):`, prestamoData.user_ids);
+                prestamoData.user_ids.forEach(userId => {
+                    socketRepository.emitToUser(userId, 'prestamo:proveedor:creado', message);
+                });
+            }
+
+            // ✅ EMITIR A ROLES (mapear role a room primero)
+            if (prestamoData.roles && prestamoData.roles.length > 0) {
+                console.log(`   🔐 Emitiendo a roles (${prestamoData.roles.length}):`, prestamoData.roles);
+                const roleMap = {
+                    'admin': 'admins',
+                    'manager': 'managers',
+                    'preventista': 'preventistas',
+                    'cajero': 'cajeros',
+                    'cobrador': 'cobradores',
+                    'logistica': 'logisticas',
+                };
+
+                prestamoData.roles.forEach(role => {
+                    const normalizedRole = role.toLowerCase().trim();
+                    const room = roleMap[normalizedRole] || normalizedRole + 's';
+                    socketRepository.emitToRoom(room, 'prestamo:proveedor:creado', message);
+                });
+            }
+
+            console.log('   ✅ Notificación enviada\n');
+            return true;
+
+        } catch (error) {
+            console.error('❌ Error en notifyPrestamoProveedorCreado:', error.message);
+            return false;
+        }
+    }
 }
 
 export default new PrestamoService();
