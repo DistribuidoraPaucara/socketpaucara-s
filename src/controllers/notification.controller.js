@@ -1088,6 +1088,41 @@ class NotificationController {
 
                 notificationSent = true;
             }
+            // ✅ NUEVO: Notificar al preventista que su venta fue confirmada (con tipo_confirmacion)
+            else if (eventName === 'preventista.venta.confirmada' || eventName === 'notify/preventista-venta-confirmada') {
+                console.log('\n═══════════════════════════════════════════════════════════');
+                console.log('✅ PREVENTISTA: VENTA CONFIRMADA COMO ENTREGADA');
+                console.log('═══════════════════════════════════════════════════════════');
+                console.log(`   Venta ID: ${notificationData.venta_id}`);
+                console.log(`   Venta Número: ${notificationData.venta_numero}`);
+                console.log(`   Entrega ID: ${notificationData.entrega_id}`);
+                console.log(`   Cliente: ${notificationData.cliente_nombre}`);
+                console.log(`   Tipo Confirmación: ${notificationData.tipo_confirmacion}`);
+                console.log(`   Preventista ID: ${notificationData.preventista_id}`);
+                console.log(`   User ID (Preventista): ${notificationData.user_id}`);
+                console.log('═══════════════════════════════════════════════════════════\n');
+
+                // Notificar al preventista
+                if (notificationData.user_id) {
+                    socketRepository.emitToUser(notificationData.user_id, 'preventista.venta.confirmada', {
+                        venta_id: notificationData.venta_id,
+                        venta_numero: notificationData.venta_numero,
+                        entrega_id: notificationData.entrega_id,
+                        entrega_numero: notificationData.entrega_numero,
+                        cliente_nombre: notificationData.cliente_nombre,
+                        cliente_id: notificationData.cliente_id,
+                        preventista_id: notificationData.preventista_id,
+                        preventista_nombre: notificationData.preventista_nombre,
+                        tipo_confirmacion: notificationData.tipo_confirmacion,
+                        chofer_nombre: notificationData.chofer_nombre,
+                        timestamp: new Date().toISOString(),
+                        notificationType: 'preventista_venta_confirmada'
+                    });
+                    console.log(`   ✅ Notificación enviada al preventista: user_${notificationData.user_id}`);
+                }
+
+                notificationSent = true;
+            }
             // ✅ NUEVO: Manejar generación de reporte de carga
             else if (eventName === 'reporte.cargo_generado') {
                 console.log('\n═══════════════════════════════════════════════════════════');

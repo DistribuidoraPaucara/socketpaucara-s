@@ -4,6 +4,7 @@ import usersRoutes from './users.routes.js';
 import proformaRoutes from './proforma.routes.js';
 import shipmentRoutes from './shipment.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import prestamoRoutes from './prestamo.routes.js';
 import { broadcastRoutes } from './broadcast.route.js';
 
 export const setupRoutes = (app) => {
@@ -15,6 +16,9 @@ export const setupRoutes = (app) => {
 
     // Rutas de proformas (Laravel → WebSocket)
     app.use('/', proformaRoutes);
+
+    // Rutas de préstamos (Laravel → WebSocket)
+    app.use('/', prestamoRoutes);
 
     // Rutas de dashboard (Laravel → WebSocket)
     app.use('/notify', dashboardRoutes);

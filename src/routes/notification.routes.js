@@ -464,6 +464,27 @@ router.post('/notify/cliente-venta-confirmada', ensureBackend, (req, res, next) 
     notificationController.handleNotification(req, res, next);
 });
 
+// ✅ NUEVO: Endpoint para notificar al preventista que su venta fue confirmada como entregada
+// POST /notify/preventista-venta-confirmada
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   venta_id: int,
+//   venta_numero: string,
+//   entrega_id: int,
+//   entrega_numero: string,
+//   cliente_nombre: string,
+//   cliente_id: int,
+//   user_id: int (preventista user_id),
+//   preventista_id: int,
+//   preventista_nombre: string,
+//   tipo_confirmacion: 'COMPLETA'|'RECHAZADO'|'DEVOLUCION_PARCIAL'|'CLIENTE_CERRADO'|'NO_CONTACTADO',
+//   chofer_nombre: string
+// }
+router.post('/notify/preventista-venta-confirmada', ensureBackend, (req, res, next) => {
+    req.body.event = 'preventista.venta.confirmada';
+    notificationController.handleNotification(req, res, next);
+});
+
 // ✅ NUEVO (2026-08-08): Endpoint genérico para notificaciones multi-canal
 // Envía a múltiples usuarios y roles en una sola petición HTTP
 // POST /notify/multi-channel
