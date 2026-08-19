@@ -42,11 +42,23 @@ class PrestamoService {
                 });
             }
 
-            // ✅ EMITIR A ROLES
+            // ✅ EMITIR A ROLES (mapear role a room primero)
             if (prestamoData.roles && prestamoData.roles.length > 0) {
                 console.log(`   🔐 Emitiendo a roles (${prestamoData.roles.length}):`, prestamoData.roles);
+                // Mapear roles a salas correspondientes
+                const roleMap = {
+                    'admin': 'admins',
+                    'manager': 'managers',
+                    'preventista': 'preventistas',
+                    'cajero': 'cajeros',
+                    'cobrador': 'cobradores',
+                    'logistica': 'logisticas',
+                };
+
                 prestamoData.roles.forEach(role => {
-                    socketRepository.emitToRole(role, 'prestamo:cliente:creado', message);
+                    const normalizedRole = role.toLowerCase().trim();
+                    const room = roleMap[normalizedRole] || normalizedRole + 's';
+                    socketRepository.emitToRoom(room, 'prestamo:cliente:creado', message);
                 });
             }
 
@@ -93,11 +105,23 @@ class PrestamoService {
                 });
             }
 
-            // ✅ EMITIR A ROLES
+            // ✅ EMITIR A ROLES (mapear role a room primero)
             if (prestamoData.roles && prestamoData.roles.length > 0) {
                 console.log(`   🔐 Emitiendo a roles (${prestamoData.roles.length}):`, prestamoData.roles);
+                // Mapear roles a salas correspondientes
+                const roleMap = {
+                    'admin': 'admins',
+                    'manager': 'managers',
+                    'preventista': 'preventistas',
+                    'cajero': 'cajeros',
+                    'cobrador': 'cobradores',
+                    'logistica': 'logisticas',
+                };
+
                 prestamoData.roles.forEach(role => {
-                    socketRepository.emitToRole(role, 'prestamo:evento:creado', message);
+                    const normalizedRole = role.toLowerCase().trim();
+                    const room = roleMap[normalizedRole] || normalizedRole + 's';
+                    socketRepository.emitToRoom(room, 'prestamo:evento:creado', message);
                 });
             }
 
