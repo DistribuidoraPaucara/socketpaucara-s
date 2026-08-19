@@ -1,4 +1,4 @@
-import io from '../config/io.js';
+import socketRepository from '../repositories/socket.repository.js';
 
 /**
  * Servicio especializado para notificaciones de préstamos
@@ -12,8 +12,8 @@ class PrestamoService {
      * 🎁 Notificar creación de préstamo a cliente
      * Emite a múltiples canales según usuario_id y roles
      */
-    notifyPrestamoClienteCreated(prestamoData) {
-        console.log('🎁 PrestamoService.notifyPrestamoClienteCreated()');
+    notifyPrestamoClienteCreado(prestamoData) {
+        console.log('🎁 PrestamoService.notifyPrestamoClienteCreado()');
         console.log('   Datos:', {
             id: prestamoData.id,
             cliente: prestamoData.cliente?.nombre,
@@ -38,8 +38,7 @@ class PrestamoService {
             if (prestamoData.user_ids && prestamoData.user_ids.length > 0) {
                 console.log(`   📤 Emitiendo a usuarios específicos (${prestamoData.user_ids.length}):`, prestamoData.user_ids);
                 prestamoData.user_ids.forEach(userId => {
-                    const room = `user-${userId}`;
-                    io.to(room).emit('prestamo:cliente:creado', message);
+                    socketRepository.emitToUser(userId, 'prestamo:cliente:creado', message);
                 });
             }
 
@@ -47,8 +46,7 @@ class PrestamoService {
             if (prestamoData.roles && prestamoData.roles.length > 0) {
                 console.log(`   🔐 Emitiendo a roles (${prestamoData.roles.length}):`, prestamoData.roles);
                 prestamoData.roles.forEach(role => {
-                    const room = `role-${role}`;
-                    io.to(room).emit('prestamo:cliente:creado', message);
+                    socketRepository.emitToRole(role, 'prestamo:cliente:creado', message);
                 });
             }
 
@@ -56,7 +54,7 @@ class PrestamoService {
             return true;
 
         } catch (error) {
-            console.error('❌ Error en notifyPrestamoClienteCreated:', error.message);
+            console.error('❌ Error en notifyPrestamoClienteCreado:', error.message);
             return false;
         }
     }
@@ -65,8 +63,8 @@ class PrestamoService {
      * 🎁 Notificar creación de préstamo a evento
      * Emite a múltiples canales según usuario_id y roles
      */
-    notifyPrestamoEventoCreated(prestamoData) {
-        console.log('🎁 PrestamoService.notifyPrestamoEventoCreated()');
+    notifyPrestamoEventoCreado(prestamoData) {
+        console.log('🎁 PrestamoService.notifyPrestamoEventoCreado()');
         console.log('   Datos:', {
             id: prestamoData.id,
             evento: prestamoData.nombre_evento,
@@ -91,8 +89,7 @@ class PrestamoService {
             if (prestamoData.user_ids && prestamoData.user_ids.length > 0) {
                 console.log(`   📤 Emitiendo a usuarios específicos (${prestamoData.user_ids.length}):`, prestamoData.user_ids);
                 prestamoData.user_ids.forEach(userId => {
-                    const room = `user-${userId}`;
-                    io.to(room).emit('prestamo:evento:creado', message);
+                    socketRepository.emitToUser(userId, 'prestamo:evento:creado', message);
                 });
             }
 
@@ -100,8 +97,7 @@ class PrestamoService {
             if (prestamoData.roles && prestamoData.roles.length > 0) {
                 console.log(`   🔐 Emitiendo a roles (${prestamoData.roles.length}):`, prestamoData.roles);
                 prestamoData.roles.forEach(role => {
-                    const room = `role-${role}`;
-                    io.to(room).emit('prestamo:evento:creado', message);
+                    socketRepository.emitToRole(role, 'prestamo:evento:creado', message);
                 });
             }
 
@@ -109,7 +105,7 @@ class PrestamoService {
             return true;
 
         } catch (error) {
-            console.error('❌ Error en notifyPrestamoEventoCreated:', error.message);
+            console.error('❌ Error en notifyPrestamoEventoCreado:', error.message);
             return false;
         }
     }
