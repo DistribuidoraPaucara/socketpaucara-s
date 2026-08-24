@@ -26,6 +26,19 @@ class HealthController {
             });
         }
     }
+
+    // ✅ NUEVO: Endpoint para debug detallado de conexiones
+    async getConnectionStatus(req, res) {
+        try {
+            const status = userService.getDetailedConnectionStatus();
+            res.json(status);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
 }
 
 export default new HealthController();

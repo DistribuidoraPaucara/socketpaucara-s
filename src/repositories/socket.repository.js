@@ -28,7 +28,12 @@ class SocketRepository {
         console.log(`   Clientes conectados en sala: ${clientsInRoom}`);
         console.log(`   Evento: ${event}`);
         console.log(`   Datos: ${JSON.stringify(data, null, 2)}`);
-        console.log(`   ⚠️  SI clientsInRoom=0, el usuario NO está conectado en esta sala`);
+        if (clientsInRoom === 0) {
+            console.log(`   ⚠️  ERROR: Usuario ${normalizedUserId} NO está conectado en la sala ${room}`);
+            console.log(`   ⚠️  La emisión se perdará porque no hay clientes esperando`);
+        } else {
+            console.log(`   ✅ Usuario ${normalizedUserId} está conectado, evento será entregado`);
+        }
         console.log(`\n`);
 
         this.io.to(room).emit(event, data);

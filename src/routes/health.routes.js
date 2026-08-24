@@ -24,4 +24,7 @@ router.get('/health', healthController.getHealth);
 // Endpoint para obtener usuarios activos
 router.get('/active-users', healthController.getActiveUsers);
 
+// ✅ NUEVO: Endpoint para debug detallado de conexiones y salas
+router.get('/debug/connections', healthController.getConnectionStatus);
+
 export default router;
