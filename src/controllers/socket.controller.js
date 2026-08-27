@@ -126,6 +126,12 @@ class SocketController {
             this.handleGetEntregasStats(socket, data);
         });
 
+        // ========== EVENTO DE SUSCRIPCIÓN A CANALES ==========
+        // ✅ NUEVO: Permitir que clientes se suscriban a canales de rol
+        socket.on('subscribe', (data) => {
+            this.handleSubscribe(socket, data);
+        });
+
         // Evento de desconexión
         socket.on('disconnect', () => {
             this.handleDisconnect(socket);
@@ -548,6 +554,49 @@ class SocketController {
             });
 
             return false;
+        }
+    }
+
+    // ✅ NUEVO: Manejar suscripción a canales de rol
+    // El cliente emite: socket.emit('subscribe', { channel: 'admins' })
+    handleSubscribe(socket, data) {
+        const { channel } = data || {};
+
+        if (!channel || typeof channel !== 'string') {
+            console.warn(`⚠️  [Subscribe] Canal inválido:`, data);
+            socket.emit('subscribe_error', {
+                success: false,
+                error: 'Canal inválido'
+            });
+            return;
+        }
+
+        try {
+            // Unir el socket a la sala del canal
+            socket.join(channel);
+
+            // Obtener información del usuario conectado (si está autenticado)
+            const user = activeUsersRepository.getUserBySocketId(socket.id);
+
+            console.log(`✅ [Subscribe] Socket ${socket.id} suscripto a canal: ${channel}`);
+            if (user) {
+                console.log(`   Usuario: ${user.userName} (${user.userType})`);
+            }
+
+            // Emitir confirmación de suscripción
+            socket.emit('subscribed', {
+                success: true,
+                channel: channel,
+                message: `Suscripto correctamente a ${channel}`
+            });
+
+        } catch (error) {
+            console.error(`❌ [Subscribe] Error al suscribir a ${channel}:`, error.message);
+            socket.emit('subscribe_error', {
+                success: false,
+                error: error.message,
+                channel: channel
+            });
         }
     }
 }
