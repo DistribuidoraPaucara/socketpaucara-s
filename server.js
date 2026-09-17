@@ -26,6 +26,9 @@ import { getLocalIP } from './src/utils/network-utils.js';
 // Importar Estado Manager (Fase 2)
 import estadoManager from './src/services/estado-manager.service.js';
 
+// ✅ NUEVO: Importar Servicio de Notificaciones Recurrentes
+import notificacionesService from './src/services/notificaciones-recurrentes.service.js';
+
 // Cargar variables de entorno
 dotenv.config();
 
@@ -118,6 +121,12 @@ async function startServer() {
         // NO esperamos initialize() - se ejecuta en background
         estadoManager.initialize().catch(error => {
             console.error('⚠️  Error en inicialización background:', error.message);
+        });
+
+        // ✅ NUEVO: Inicializar servicio de notificaciones recurrentes
+        console.log('\n⏳ Inicializando servicio de notificaciones recurrentes...');
+        notificacionesService.initialize().catch(error => {
+            console.error('⚠️  Error en notificaciones recurrentes:', error.message);
         });
 
         const PORT = getPort();
