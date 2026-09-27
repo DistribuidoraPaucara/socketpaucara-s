@@ -510,6 +510,82 @@ router.post('/notify/multi-channel', ensureBackend, (req, res) => {
     notificationController.handleMultiChannel(req, res);
 });
 
+// ✅ NUEVO: Endpoint genérico para enviar notificación a un usuario específico
+// POST /notify/user
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   user_id: int (ID del usuario destinatario),
+//   event: string (nombre del evento),
+//   data: object (datos a enviar),
+//   timestamp: string (ISO8601, opcional)
+// }
+// Emite directamente al usuario sin diferenciación de rol
+router.post('/notify/user', ensureBackend, (req, res) => {
+    try {
+        const { user_id, event, data, timestamp } = req.body;
+
+        if (!user_id || !event || !data) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required parameters: user_id, event, data'
+            });
+        }
+
+        console.log('\n═══════════════════════════════════════════════════════════');
+        console.log(`📡 [/notify/user] Enviando a usuario: ${user_id}`);
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`   Evento: ${event}`);
+        console.log(`   Datos:`, JSON.stringify(data, null, 2));
+        console.log('═══════════════════════════════════════════════════════════\n');
+
+        // Emitir directamente al usuario
+        socketRepository.emitToUser(user_id, event, data);
+
+        console.log(`✅ [/notify/user] Notificación emitida a usuario: ${user_id}\n`);
+
+        return res.json({
+            success: true,
+            user_id,
+            event,
+            timestamp: timestamp || new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Error en /notify/user:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ✅ NUEVO: Endpoint para notificación de stock disponible (compra completada)
+// POST /notify/stock-disponible
+// Headers: { 'x-ws-secret': '...' }
+// Body: {
+//   titulo: string,
+//   compra_numero: string,
+//   proveedor: { id, nombre },
+//   productos: [{ producto_id, producto_nombre, sku, cantidad_llegada, lote, fecha_vencimiento }],
+//   cantidad_productos: int,
+//   cantidad_total_items: int,
+//   show_quantities: boolean (false para clientes),
+//   fecha_ingreso: ISO8601
+// }
+// Emite a:
+// - Roles internos (admin, manager, cajero, preventista, chofer): datos COMPLETOS con cantidades
+// - Cliente: datos REDUCIDOS sin cantidades (show_quantities: false)
+router.post('/notify/stock-disponible', ensureBackend, (req, res, next) => {
+    req.body.event = 'stock.disponible';
+    notificationController.handleNotification(req, res, next);
+});
+
+// ✅ Alias alternativo con guiones bajos
+router.post('/notify/stock_disponible', ensureBackend, (req, res, next) => {
+    req.body.event = 'stock.disponible';
+    notificationController.handleNotification(req, res, next);
+});
+
 // ✅ NUEVO: Endpoint para enviar notificación a un rol específico
 // POST /notify/role
 // Headers: { 'x-ws-secret': '...' }

@@ -1478,13 +1478,14 @@ class NotificationController {
                 });
             }
 
-            console.log('\n═══════════════════════════════════════════════════════════');
-            console.log(`📡 [/notify/multi-channel] Evento: ${event}`);
-            console.log('═══════════════════════════════════════════════════════════');
-            console.log(`   User IDs: ${user_ids.length}`);
-            console.log(`   Roles: ${roles.length}`);
-            console.log(`   Data keys: ${Object.keys(data).join(', ')}`);
-            console.log('═══════════════════════════════════════════════════════════\n');
+            console.log('\n╔═══════════════════════════════════════════════════════════╗');
+            console.log('║          📡 NOTIFICACIÓN MULTI-CANAL RECIBIDA            ║');
+            console.log('╚═══════════════════════════════════════════════════════════╝');
+            console.log(`📌 Evento: ${event}`);
+            console.log(`👥 User IDs (${user_ids.length}): ${user_ids.join(', ')}`);
+            console.log(`🏢 Roles (${roles.length}): ${roles.join(', ')}`);
+            console.log(`📋 Datos: ${Object.keys(data).join(', ')}`);
+            console.log('╔═══════════════════════════════════════════════════════════╗\n');
 
             let totalEmitted = 0;
 
