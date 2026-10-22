@@ -3,7 +3,7 @@ builder = "RAILPACK"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/"
+healthcheckPath = "/health"
 healthcheckTimeout = 300
 
 [env]
