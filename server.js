@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import process from 'process';
 
-// Importar configuraciones
+// Importar configuraciones ajustados
 import { expressCorOptions, socketCorsOptions } from './src/config/cors.config.js';
 import { socketConfig, getPort, getHost, getWebsocketUrl, validateProductionConfig } from './src/config/socket.config.js';
 
